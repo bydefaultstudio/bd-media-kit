@@ -1,23 +1,6 @@
-.DS_Store
-node_modules
-.env
-.vscode
-.cursor
+# Ignore everything
+*
 
-# Documentation - ignore generator dependencies but keep source and generated files
-docs/generator/node_modules/
-docs/generator/package-lock.json
-
-# Package files
-package-lock.json
-
-# OS files
-Thumbs.db
-
-# Editor files
-.idea/
-*.swp
-*.swo
-
-# Logs
-*.log
+# Except the src folder and its contents
+!src/
+!src/**

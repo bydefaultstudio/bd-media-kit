@@ -245,6 +245,42 @@ Reference-style:
 
 ---
 
+## HTML in Markdown
+
+Since the documentation generator allows HTML, you can use HTML directly in markdown files to add styling classes and create custom layouts.
+
+### Image with Classes
+
+You can use HTML `<img>` tags to add design system classes:
+
+<img src="../../src/assets/images/og-default.jpg" alt="Example image" class="border border-secondary padding-m max-width-full">
+
+```markdown
+<img src="../../src/assets/images/og-default.jpg" alt="Example image" class="border border-secondary padding-m max-width-full">
+```
+
+### HTML Blocks
+
+You can create custom blocks with design system classes:
+
+<div class="block gap-l border border-secondary padding-l">
+  <h3>Custom Block Example</h3>
+  <p>This is a custom HTML block with a heading, text, and button. You can use any design system classes to style it.</p>
+  <button class="button">Action Button</button>
+</div>
+
+```markdown
+<div class="block gap-l border border-secondary padding-l">
+  <h3>Custom Block Example</h3>
+  <p>This is a custom HTML block with a heading, text, and button. You can use any design system classes to style it.</p>
+  <button class="button">Action Button</button>
+</div>
+```
+
+**Note:** HTML in markdown gives you full control over styling. Use design system classes (`block`, `gap-*`, `border`, `padding-*`, `button`, etc.) to maintain consistency with the rest of the documentation.
+
+---
+
 ## Code and Syntax Highlighting
 
 The ByDefault design system uses `CSS custom properties` for all design tokens. Inline `code` has `back-ticks around` it for clarity.

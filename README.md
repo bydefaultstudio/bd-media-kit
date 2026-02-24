@@ -1,33 +1,39 @@
-# [Your Project Name]
+# Black Doctor — Digital Media Kit
 
-This project uses a structured design system and layout architecture for building consistent, maintainable front-end experiences.
+This project uses a structured design system and layout architecture for building consistent, maintainable front-end experiences within Webflow.
 
 ## Overview
 
 This project includes:
 
-- A complete **design system** with tokens, utility classes, and components
-- Clear **layout and spacing rules** for consistent page structure
-- Documented **best practices** for CSS, JavaScript, and HTML
-- A **style guide** for visualizing available patterns
+- A Webflow-based **single-page media kit experience**
+- A complete **design system** with tokens, utility classes, and reusable components
+- Horizontal product carousels powered by **SplideJS**
+- Product overlay system with **URL deep linking (`?product=`)**
+- High-quality motion powered by **GSAP**
+- Clear layout and spacing rules aligned with the existing Black Doctor design system
+
+The experience allows partners and advertisers to browse products by category, open detailed overlays, and submit inquiries via a contact form.
 
 ## Getting Started
 
-1. Review `PROJECT_BRIEF.md` for project goals and requirements
-2. Follow the [Setup guide](docs/site/setup.html) to customize brand colors, fonts, and logo
-3. Explore the [Documentation](docs/site/index.html) for design system details
-4. Check the [Style Guide](styleguide/index.html) to see available patterns
-5. Start building pages inside `/src`
+1. Review `PROJECT_BRIEF.md` for goals, scope, and timeline.
+2. Confirm Webflow CMS collections (Products + Categories).
+3. Ensure the existing Black Doctor design system is active and unchanged.
+4. Add required libraries (SplideJS + GSAP) via Webflow custom code.
+5. Build category sections and CMS-driven product cards.
+6. Implement overlay logic with URL deep linking support.
+7. QA responsiveness, accessibility, and performance before publish.
 
 ## Documentation
 
-Complete documentation is available in the [Documentation site](docs/site/index.html), including:
+Complete documentation is available in the project files and includes:
 
-- **Design System** — Color, typography, spacing, borders, components
-- **Code Structure** — CSS and JavaScript organization patterns  
-- **HTML Layout** — Page structure and layout primitives
-- **Content** — Markdown style and SEO best practices
-- **Project** — Setup, folder structure, and project overview
+- **Design System** — Color variables, typography scale, spacing tokens, components
+- **Code Structure** — JavaScript architecture for overlays, routing, and animations
+- **Layout Rules** — Section spacing, grid structure, and responsive behavior
+- **CMS Model** — Required product fields (title, slug, category, media, content)
+- **Project Overview** — Scope, constraints, and MVP definition
 
 ---
 

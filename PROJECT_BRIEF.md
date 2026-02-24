@@ -1,104 +1,200 @@
-# Project Brief
 
-> **Note:** Replace all bracketed placeholders `[like this]` with your project-specific details.  
-> Remove example text once replaced.
+Behavior:
+- If `?product=` exists on page load → open that overlay automatically
+- If invalid slug → default to homepage view
+- On overlay close → URL resets to base `/media-kit`
 
----
-
-## 1. Project Summary
-
-**In one sentence:**  
-[Example: A marketing website to launch Product X and drive early sign-ups.]
+This preserves a single-page feel while allowing shareable links.
 
 ---
 
-## 2. Problem & Opportunity
+## 7. Information Architecture
 
-**Problem**  
-[Example: Users struggle to understand the product value within the first 10 seconds.]
+### Categories
 
-**Opportunity**  
-[Example: A clear, focused website could improve sign-up conversion and brand clarity.]
+1. Editorial  
+2. Video  
+3. First Market AI Opportunities  
+4. Newsletter  
+5. Clinical Trials  
+6. High Impact Ads & Events  
 
----
-
-## 3. Goals
-
-**Primary goals**
-- [Example: Clearly communicate the product value proposition]
-- [Example: Drive newsletter or waitlist sign-ups]
-
-**Secondary goals**
-- [Example: Improve brand perception]
-- [Example: Support future content or product launches]
+Each category:
+- Has a heading
+- Contains a horizontal SplideJS carousel
+- Pulls from Webflow CMS (recommended)
 
 ---
 
-## 4. Non-Goals (Out of Scope)
+## 8. Technical Stack (Webflow)
 
-[Example: This project will not include a logged-in dashboard or user accounts.]
+### Platform
+- Built entirely inside Webflow
+- Hosted on Webflow
+- Uses existing Webflow Design System (required)
 
-- [Example: No mobile app build]
-- [Example: No e-commerce functionality]
-- [Example: No complex animations in phase one]
-
----
-
-## 5. Audience
-
-**Primary audience**  
-[Example: Founders and early adopters in the fintech space]
-
-**Secondary audience (if any)**  
-[Example: Investors and potential partners]
-
----
-
-## 6. Success Criteria
-
-How will we know this worked?
-
-- [Example: Increase sign-up conversion rate]
-- [Example: Positive qualitative feedback on clarity and usability]
-- [Example: Stakeholder approval]
+### Content Management
+- All products stored in Webflow CMS
+- Each product includes:
+  - Title
+  - Slug (required for deep linking)
+  - Category (reference or multi-reference)
+  - Thumbnail image
+  - Hero image (optional)
+  - Short description
+  - Long description (rich text)
+  - Key stats (optional fields)
+  - CTA label (optional)
+  - CTA link (optional)
 
 ---
 
-## 7. Constraints & Requirements
+## 9. Libraries
 
-**Timeline**  
-[Example: 4 weeks from kickoff to launch]
+### SplideJS
+Used for:
+- Horizontal category carousels
+- Swipe support on mobile
+- Smooth transitions
 
-**Platforms**  
-[Example: Responsive web only]
+Behavior:
+- Desktop: 3–4 cards per view
+- Tablet: 2 cards per view
+- Mobile: 1 card per view
 
-**Technical constraints**  
-[Example: Must be built with the existing design system and static HTML/CSS]
+### GSAP
+Used for:
+- Hero entrance animations
+- Card stagger reveal
+- Overlay open/close transitions
+- Subtle typography motion
+- Optional scroll-triggered animations
 
-**Accessibility**  
-[Example: WCAG 2.1 AA compliance]
-
-**Performance**  
-[Example: Lighthouse score 90+]
-
----
-
-## 8. Design & Build Notes
-
-**Design system**  
-[Example: Use the shared design system with brand-specific color overrides]
-
-**Content**  
-[Example: Copy provided by client, images to be sourced during build]
-
-**Known risks**  
-[Example: Content may change late in the project]
+Reference documentation for GSAP capabilities:  
+:contentReference[oaicite:0]{index=0}
 
 ---
 
-## 9. Open Questions
+## 10. Overlay Requirements
 
-[List anything that still needs clarification.]
+### Functional
+- Full-screen dialog/modal
+- ARIA role="dialog"
+- Focus trap inside overlay
+- ESC to close
+- Restore focus to originating card
+- Disable background scroll
 
-- [Example: Final headline copy?]
-- [Example: Legal or compliance requirements?]
+### Content Structure
+- Hero image
+- Product title
+- Key information blocks
+- Description
+- CTA button(s)
+- Contact anchor or open form
+
+---
+
+## 11. Contact Form
+
+Fields:
+- Name
+- Company
+- Email
+- Message
+- (Optional) Product of Interest (auto-filled if overlay opened)
+
+Hosted and managed through Webflow Forms.
+
+---
+
+## 12. Accessibility Requirements
+
+- WCAG 2.1 AA color contrast
+- Keyboard navigable
+- Proper semantic structure
+- Focus states visible
+- Accessible carousel controls
+- Accessible overlay dialog behavior
+
+---
+
+## 13. Performance Requirements
+
+- Minimal JS footprint
+- Lazy-load images where possible
+- Lighthouse performance target: 85+
+- Avoid animation overuse
+- Optimize CMS image sizes
+
+---
+
+## 14. Design System Requirements
+
+- Must use the existing Black Doctor design system
+- Typography scales must remain consistent
+- Spacing tokens must be preserved
+- Color variables must not be overridden
+- No custom styling that breaks the system structure
+- Animations must enhance — not conflict with — system motion guidelines
+
+---
+
+## 15. Timeline
+
+**Completion Target: 2 Days (48 Hours)**
+
+### Day 1
+- Webflow CMS structure
+- Category sections
+- Splide carousel setup
+- Overlay structure
+- Base responsive layout
+- Contact form integration
+
+### Day 2
+- URL deep linking logic
+- Overlay open-on-load
+- GSAP animations
+- Accessibility pass
+- Mobile QA
+- Performance optimization
+- Final polish
+
+---
+
+## 16. Known Risks
+
+- Late content updates
+- Slug inconsistencies breaking deep linking
+- Overuse of animation impacting performance
+- Mobile overlay layout complexity
+- CMS field structure changes during build
+
+---
+
+## 17. Open Questions
+
+- Confirm URL format: `?product=` (recommended)
+- Should overlay include downloadable media specs?
+- Any legal disclaimers required for AI or Clinical Trials?
+- Should analytics track:
+  - Card clicks?
+  - Overlay opens?
+  - CTA clicks?
+
+---
+
+## 18. MVP Definition (Critical for 2-Day Build)
+
+The project is considered complete when:
+
+- All categories are visible
+- All products load from CMS
+- Carousels function across breakpoints
+- Overlays open and close correctly
+- URL updates and opens correct overlay on load
+- Contact form submits successfully
+- Responsive behavior verified
+- No console errors
+- Stakeholder approval granted
