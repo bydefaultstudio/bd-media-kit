@@ -4,3 +4,8 @@
 # Except the src folder and its contents
 !src/
 !src/**
+
+# Explicitly ignore (no upload)
+docs/
+templates/
+styleguide/

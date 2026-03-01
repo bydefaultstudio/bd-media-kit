@@ -3,11 +3,11 @@
  * Script Purpose: Product overlay modal — open on card click, close with button / ESC / backdrop.
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.0.0
- * Last Updated: 2025-02-22
+ * Version: 1.0.2
+ * Last Updated: 2026-02-28
  */
 
-console.log("Script - Modal v1.0.0");
+console.log("Script - Modal v1.0.2");
 
 //
 //------- Selectors -------//
@@ -21,6 +21,10 @@ const productModalWrapper = "[data-modal=\"wrapper\"]";
 const productModalContent = "[data-modal=\"content\"]";
 const productModalEmailBtn = "[data-modal=\"email-btn\"]";
 const productModalCopyBtn = "[data-modal=\"copy-btn\"]";
+
+// Contact modal (same inner structure: close, overlay, wrapper)
+const contactModal = "[data-modal=\"contact\"]";
+const contactOpenBtn = "[data-modal=\"contact-open\"]";
 const productPayload = "[data-product=\"content\"]";
 const productCard = "[data-product]:not([data-product=\"content\"])";
 const focusable = "a[href], button:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
@@ -28,9 +32,29 @@ const modalOpenClass = "is-open";
 const modalAnimDuration = 0.5;
 const modalAnimEase = "power2.out";
 const urlParamProduct = "product";
+const urlParamIntro = "intro";
 const emailSubjectBase = "BlackDoctor Media Kit";
 const storageKeyRecentlyRead = "bd-media-kit-recently-read";
 const classRecentlyRead = "is-recently-read";
+
+// Intro modal (first-visit: name + email; stored in localStorage and used to prefill contact form)
+// HTML: [data-modal="intro"] root; inner [data-modal="close"], [data-modal="overlay"], [data-modal="wrapper"];
+//       form [data-modal="intro-form"] with inputs [data-modal="intro-name"], [data-modal="intro-email"].
+//       Optional: data-intro-auto-open="true" = auto-open for first-time visitors; "false" or omit = intro only via ?intro=1.
+const introModal = "[data-modal=\"intro\"]";
+const introForm = "[data-modal=\"intro-form\"]";
+const introName = "[data-modal=\"intro-name\"]";
+const introEmail = "[data-modal=\"intro-email\"]";
+const keyVisitor = "bd-media-kit-visitor";
+const keyIntroDismissed = "bd-media-kit-intro-dismissed";
+
+// Contact form prefill
+const contactName = "[data-modal=\"contact-name\"]";
+const contactEmail = "[data-modal=\"contact-email\"]";
+
+const successSel = ".success-message";
+const autoOpenAttr = "data-intro-auto-open";
+const closeDelaySec = 2;
 
 //
 //------- Utility Functions -------//
@@ -41,6 +65,13 @@ function getProductFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const slug = params.get(urlParamProduct);
   return slug && slug.trim() !== "" ? slug.trim() : null;
+}
+
+// True if URL has ?intro=1 or ?intro=true (share link that forces the intro modal to open).
+function getIntroFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const v = params.get(urlParamIntro);
+  return v === "1" || v === "true";
 }
 
 // Updates URL to include ?product=slug (pushState).
@@ -96,6 +127,67 @@ function applyRecentlyReadStates() {
       card.classList.add(classRecentlyRead);
     }
   });
+}
+
+// --- Intro modal & visitor storage ---
+
+// Returns stored visitor { name, email } or null.
+function getStoredVisitor() {
+  try {
+    const raw = localStorage.getItem(keyVisitor);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.name === "string" && typeof parsed.email === "string") {
+      return { name: parsed.name.trim(), email: parsed.email.trim() };
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Saves visitor to localStorage.
+function setStoredVisitor(obj) {
+  if (!obj || typeof obj.name !== "string" || typeof obj.email !== "string") return;
+  try {
+    localStorage.setItem(keyVisitor, JSON.stringify({
+      name: obj.name.trim(),
+      email: obj.email.trim(),
+    }));
+  } catch (e) {}
+}
+
+// Returns true if user closed intro without submitting.
+function getIntroDismissed() {
+  try {
+    return localStorage.getItem(keyIntroDismissed) === "true";
+  } catch (e) {
+    return false;
+  }
+}
+
+// Marks intro as dismissed (closed without submit).
+function setIntroDismissed() {
+  try {
+    localStorage.setItem(keyIntroDismissed, "true");
+  } catch (e) {}
+}
+
+// True when we should auto-open the intro modal (first visit, not dismissed).
+function shouldShowIntro() {
+  return !getStoredVisitor() && !getIntroDismissed();
+}
+
+// True when the intro modal has data-intro-auto-open="true". "false" or omit = default (intro only via ?intro=1).
+function introModalHasAutoOpen() {
+  const el = getIntroModal();
+  if (!el || !el.hasAttribute(autoOpenAttr)) return false;
+  return (el.getAttribute(autoOpenAttr) || "").toLowerCase() === "true";
+}
+
+// Returns the intro modal element.
+function getIntroModal() {
+  return document.querySelector(introModal);
 }
 
 // Returns the first and last focusable elements inside a container (used for focus trap).
@@ -224,6 +316,11 @@ let previousFocus = null;
 // Returns the product modal element from the DOM.
 function getProductModal() {
   return document.querySelector(productModal);
+}
+
+// Returns the contact modal element from the DOM.
+function getContactModal() {
+  return document.querySelector(contactModal);
 }
 
 // Returns true if the modal is currently open (aria-hidden is not "true").
@@ -364,8 +461,8 @@ function openModalBySlug(slug) {
   return true;
 }
 
-// Hides the modal: runs GSAP close animation, then removes is-open, restores scroll and focus.
-function closeModal(modal) {
+// Hides the modal: runs GSAP close animation, then removes is-open, restores scroll and focus. Optional onClosed callback runs after cleanup.
+function closeModal(modal, onClosed) {
   if (!modal) return;
 
   function cleanup() {
@@ -375,22 +472,136 @@ function closeModal(modal) {
 
     modal.classList.remove(modalOpenClass);
     modal.setAttribute("aria-hidden", "true");
-    lockScroll(false);
+    if ((!getContactModal() || !isModalOpen(getContactModal())) &&
+        (!getIntroModal() || !isModalOpen(getIntroModal()))) {
+      lockScroll(false);
+    }
     clearUrlProduct();
     if (previousFocus && typeof previousFocus.focus === "function") {
       previousFocus.focus();
     }
     previousFocus = null;
     console.log("Modal closed");
+    if (typeof onClosed === "function") onClosed();
   }
 
   animateModalClose(modal, cleanup);
 }
 
-// Closes the modal when Escape is pressed (only if modal is open).
-function handleModalKeyDown(e, modal) {
-  if (e.key === "Escape" && isModalOpen(modal)) {
-    closeModal(modal);
+// Opens the contact modal (same animation and pattern as product modal). Can be opened from home or from inside the product modal.
+// Prefills name and email from stored visitor data if present.
+function openContactModal() {
+  const contactEl = getContactModal();
+  if (!contactEl) return;
+  previousFocus = document.activeElement;
+  contactEl.classList.add(modalOpenClass);
+  contactEl.setAttribute("aria-hidden", "false");
+  lockScroll(true);
+  trapFocus(contactEl);
+  animateModalOpen(contactEl);
+  prefillContactForm();
+  console.log("Modal opened — contact");
+}
+
+// Hides the contact modal; restores scroll only if product modal is not open.
+function closeContactModal() {
+  const contactEl = getContactModal();
+  if (!contactEl) return;
+
+  function cleanup() {
+    const wrapper = contactEl.querySelector(productModalWrapper);
+    if (wrapper) wrapper.scrollTop = 0;
+    contactEl.classList.remove(modalOpenClass);
+    contactEl.setAttribute("aria-hidden", "true");
+    if ((!getProductModal() || !isModalOpen(getProductModal())) &&
+        (!getIntroModal() || !isModalOpen(getIntroModal()))) {
+      lockScroll(false);
+    }
+    if (previousFocus && typeof previousFocus.focus === "function") {
+      previousFocus.focus();
+    }
+    previousFocus = null;
+    console.log("Modal closed — contact");
+  }
+
+  animateModalClose(contactEl, cleanup);
+}
+
+// Prefills the contact (enquiry) form with stored visitor name and email.
+function prefillContactForm() {
+  const visitor = getStoredVisitor();
+  if (!visitor) return;
+  const contactEl = getContactModal();
+  if (!contactEl) return;
+  const nameInput = contactEl.querySelector(contactName);
+  const emailInput = contactEl.querySelector(contactEmail);
+  if (nameInput && visitor.name) nameInput.value = visitor.name;
+  if (emailInput && visitor.email) emailInput.value = visitor.email;
+  console.log("[testing] Contact form fields updated", { name: visitor.name, email: visitor.email });
+}
+
+// Opens the intro modal (first-visit name/email collection). Same animation and focus trap as contact.
+function openIntroModal() {
+  const introEl = getIntroModal();
+  if (!introEl) return;
+  previousFocus = document.activeElement;
+  introEl.classList.add(modalOpenClass);
+  introEl.setAttribute("aria-hidden", "false");
+  lockScroll(true);
+  trapFocus(introEl);
+  animateModalOpen(introEl);
+  watchIntroSuccessMessage();
+  console.log("Modal opened — intro");
+  console.log("[testing] Intro modal opened");
+}
+
+// Hides the intro modal; restores scroll only if product and contact modals are not open.
+function closeIntroModal(dismissedWithoutSubmit) {
+  const introEl = getIntroModal();
+  if (!introEl) return;
+  console.log("[testing] Intro modal closed", dismissedWithoutSubmit ? "(dismissed)" : "(submitted/success)");
+  if (dismissedWithoutSubmit) setIntroDismissed();
+
+  function cleanup() {
+    const wrapper = introEl.querySelector(productModalWrapper);
+    if (wrapper) wrapper.scrollTop = 0;
+    introEl.classList.remove(modalOpenClass);
+    introEl.setAttribute("aria-hidden", "true");
+    if (!getProductModal() || !isModalOpen(getProductModal())) {
+      if (!getContactModal() || !isModalOpen(getContactModal())) lockScroll(false);
+    }
+    if (previousFocus && typeof previousFocus.focus === "function") {
+      previousFocus.focus();
+    }
+    previousFocus = null;
+    console.log("Modal closed — intro");
+  }
+
+  animateModalClose(introEl, cleanup);
+}
+
+// ESC: when in fullscreen, browser exits fullscreen first (we do nothing). When not in fullscreen, close topmost modal (intro > contact > product).
+function handleModalKeyDown(e) {
+  if (e.key !== "Escape") return;
+  const fullscreenEl =
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement;
+  if (fullscreenEl) return;
+  const introEl = getIntroModal();
+  const contactEl = getContactModal();
+  const productEl = getProductModal();
+  if (introEl && isModalOpen(introEl)) {
+    closeIntroModal(true);
+    return;
+  }
+  if (contactEl && isModalOpen(contactEl)) {
+    closeContactModal();
+    return;
+  }
+  if (productEl && isModalOpen(productEl)) {
+    closeModal(productEl);
   }
 }
 
@@ -398,7 +609,7 @@ function handleModalKeyDown(e, modal) {
 //------- Event Listeners -------//
 //
 
-// Wires up: card click → open modal; close button, backdrop click, ESC → close modal.
+// Wires up: card click → open modal; close button, backdrop click; global ESC closes topmost modal.
 function setupModalListeners() {
   const modal = getProductModal();
   if (!modal) return;
@@ -408,8 +619,8 @@ function setupModalListeners() {
   modal.setAttribute("aria-hidden", "true");
   modal.classList.remove(modalOpenClass);
 
-  modal.addEventListener("keydown", function modalKeyDown(e) {
-    handleModalKeyDown(e, modal);
+  document.addEventListener("keydown", function globalModalKeyDown(e) {
+    handleModalKeyDown(e);
   });
 
   const closeBtn = modal.querySelector(productModalClose);
@@ -443,6 +654,144 @@ function setupModalListeners() {
   });
 }
 
+// Contact modal: same structure (close, overlay, wrapper), open via data-modal="contact-open".
+// The contact-open listener is always attached so the button works; if the modal is missing, openContactModal() will warn in the console.
+function setupContactModalListeners() {
+  const contactEl = getContactModal();
+  if (contactEl) {
+    contactEl.setAttribute("role", "dialog");
+    contactEl.setAttribute("aria-modal", "true");
+    contactEl.setAttribute("aria-hidden", "true");
+    contactEl.classList.remove(modalOpenClass);
+
+    const closeBtn = contactEl.querySelector(productModalClose);
+    if (closeBtn) {
+      closeBtn.addEventListener("click", function contactCloseClick() {
+        closeContactModal();
+      });
+    }
+
+    contactEl.addEventListener("click", function contactBackdropClick(e) {
+      if (e.target === contactEl || e.target.closest(productModalOverlay)) {
+        closeContactModal();
+      }
+    });
+  }
+
+  document.addEventListener("click", function contactOpenDelegated(e) {
+    const btn = e.target.closest(contactOpenBtn);
+    if (btn) {
+      e.preventDefault();
+      const productEl = getProductModal();
+      if (productEl && isModalOpen(productEl)) {
+        closeModal(productEl, openContactModal);
+      } else {
+        openContactModal();
+      }
+    }
+  });
+}
+
+// When .success-message is visible, save name/email from form if not already saved (fallback when Webflow handles submit first), then close.
+function saveIntroFormFromWrapperAndClose(introEl) {
+  const wrapper = introEl.querySelector(productModalWrapper);
+  if (!wrapper) return;
+  const nameEl = wrapper.querySelector(introName);
+  const emailEl = wrapper.querySelector(introEmail);
+  const name = nameEl ? nameEl.value.trim() : "";
+  const email = emailEl ? emailEl.value.trim() : "";
+  if (name && email) {
+    setStoredVisitor({ name, email });
+    console.log("[testing] Intro form saved from success state", { name, email });
+  }
+  closeIntroModal(false);
+}
+
+// True when the success message element exists and is visible. Webflow often keeps the class and toggles visibility via inline style (display: block/none).
+function isIntroSuccessMessageVisible(wrapper) {
+  const el = wrapper.querySelector(successSel);
+  if (!el) return false;
+  const style = el.getAttribute("style");
+  if (style && style.toLowerCase().includes("display")) {
+    const match = style.match(/\bdisplay\s*:\s*([^;]+)/i);
+    if (match && match[1].toLowerCase().trim() === "none") return false;
+  }
+  return el.offsetParent !== null;
+}
+
+// Watches for Webflow success: .success-message is always in the DOM; Webflow shows it by changing style (e.g. display: block). We observe attributes and only act when the message is visible.
+function watchIntroSuccessMessage() {
+  const introEl = getIntroModal();
+  if (!introEl) return;
+  const wrapper = introEl.querySelector(productModalWrapper);
+  if (!wrapper) return;
+
+  function checkSuccessVisible() {
+    if (!isModalOpen(introEl)) return;
+    if (isIntroSuccessMessageVisible(wrapper)) {
+      observer.disconnect();
+      const delayMs = (closeDelaySec > 0 ? closeDelaySec : 0) * 1000;
+      setTimeout(function () {
+        if (isModalOpen(introEl)) saveIntroFormFromWrapperAndClose(introEl);
+      }, delayMs);
+    }
+  }
+
+  const observer = new MutationObserver(function () {
+    checkSuccessVisible();
+  });
+
+  observer.observe(wrapper, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["style", "class"],
+  });
+}
+
+// Intro modal: first-visit name/email form. Close button and backdrop set intro-dismissed.
+// On submit we save name/email immediately (so contact form is always populated), allow form to submit;
+// when Webflow shows .success-message we close the modal.
+function setupIntroModalListeners() {
+  const introEl = getIntroModal();
+  if (!introEl) return;
+
+  introEl.setAttribute("role", "dialog");
+  introEl.setAttribute("aria-modal", "true");
+  introEl.setAttribute("aria-hidden", "true");
+  introEl.classList.remove(modalOpenClass);
+
+  const closeBtn = introEl.querySelector(productModalClose);
+  if (closeBtn) {
+    closeBtn.addEventListener("click", function introCloseClick() {
+      closeIntroModal(true);
+    });
+  }
+
+  introEl.addEventListener("click", function introBackdropClick(e) {
+    if (e.target === introEl || e.target.closest(productModalOverlay)) {
+      closeIntroModal(true);
+    }
+  });
+
+  const form = introEl.querySelector(introForm);
+  if (form) {
+    // Capture phase so we run before Webflow's form handler and can save + start watching for .success-message.
+    form.addEventListener("submit", function introFormSubmit(e) {
+      const nameEl = introEl.querySelector(introName);
+      const emailEl = introEl.querySelector(introEmail);
+      const name = nameEl ? nameEl.value.trim() : "";
+      const email = emailEl ? emailEl.value.trim() : "";
+      if (!name || !email) {
+        e.preventDefault();
+        return;
+      }
+      console.log("[testing] Intro form submitted", { name, email });
+      setStoredVisitor({ name, email });
+    }, true);
+  }
+}
+
 // Syncs modal with URL when user navigates back/forward.
 function handlePopstate() {
   const slug = getProductFromUrl();
@@ -465,12 +814,16 @@ function setupPopstate() {
 
 document.addEventListener("DOMContentLoaded", () => {
   setupModalListeners();
+  setupContactModalListeners();
+  setupIntroModalListeners();
   applyRecentlyReadStates();
   setupPopstate();
   const slug = getProductFromUrl();
   if (slug) {
     const opened = openModalBySlug(slug);
     if (!opened) clearUrlProduct();
+  } else if (getIntroFromUrl() || (introModalHasAutoOpen() && shouldShowIntro())) {
+    setTimeout(openIntroModal, 150);
   }
 });
 /* ==== END BLACK DOCTOR MEDIA KIT MODAL SCRIPT ==== */

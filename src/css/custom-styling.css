@@ -1,0 +1,28 @@
+/* ===== CUSTOM STYLING (Webflow) ===== */
+/**
+ * Paste this file (or sections of it) into Webflow:
+ * Site Settings → Custom Code → Head Code, or use a Custom Code embed.
+ * Add your overrides and one-off styles below.
+ */
+
+/* ----- Button colour variables (from .button) -----
+ * Change these to restyle button background and text:
+ *   --_semantic---button--button-primary  → background (and border)
+ *   --_semantic---button--button-text     → text colour
+ */
+
+/* Example: theme override for button colours (edit values as needed) */
+[data-theme="accent"] {
+  --_semantic---button--button-primary: var(--yellow);
+  --_semantic---button--button-text: var(--brand--off-black);
+}
+
+/* Add more themes the same way, e.g.: */
+/* [data-theme="light"] {
+  --_semantic---button--button-primary: var(--brand--off-black);
+  --_semantic---button--button-text: var(--brand--off-white);
+}
+[data-theme="dark"] {
+  --_semantic---button--button-primary: var(--brand--off-white);
+  --_semantic---button--button-text: var(--brand--off-black);
+} */

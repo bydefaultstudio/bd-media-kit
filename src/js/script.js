@@ -1,13 +1,12 @@
-/* ==== BEGIN BLACK DOCTOR MEDIA KIT SCRIPT ==== */
 /**
  * Script Purpose: Black Doctor Digital Media Kit — carousels, overlay, URL deep linking.
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.0.0
- * Last Updated: 2025-02-22
+ * Version: 1.0.2
+ * Last Updated: 2026-02-28
  */
 
-console.log("Script - v1.0.0");
+console.log("Script - v1.0.2");
 
 // ------- Product Slider ------- //
 function productSlider() {
@@ -47,17 +46,14 @@ function productSlider() {
         1024: {
           perPage: 3,
           perMove: 1,
-          padding: { right: "12%" },
         },
         768: {
           perPage: 2,
           perMove: 1,
-          padding: { right: "8%" },
         },
         600: {
           perPage: 1,
           perMove: 1,
-          padding: { right: 0 },
         },
       },
     });
@@ -82,6 +78,57 @@ function productSlider() {
 
     slider.mount();
   }
+}
+
+// ------- Fullscreen toggle ------- //
+// Button with data-fullscreen="toggle" enters/exits fullscreen (whole page). ESC exits fullscreen (browser); then ESC closes modals.
+const fullscreenToggleBtn = "[data-fullscreen=\"toggle\"]";
+
+function getFullscreenElement() {
+  return (
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement ||
+    null
+  );
+}
+
+function requestFullscreen(el) {
+  if (!el) return Promise.reject(new Error("No element"));
+  return (
+    el.requestFullscreen?.() ||
+    el.webkitRequestFullscreen?.() ||
+    el.mozRequestFullScreen?.() ||
+    el.msRequestFullscreen?.() ||
+    Promise.reject(new Error("Fullscreen not supported"))
+  );
+}
+
+function exitFullscreen() {
+  const doc = document;
+  return (
+    doc.exitFullscreen?.() ||
+    doc.webkitExitFullscreen?.() ||
+    doc.mozCancelFullScreen?.() ||
+    doc.msExitFullscreen?.() ||
+    Promise.resolve()
+  );
+}
+
+function handleFullscreenToggle(e) {
+  const btn = e.target.closest(fullscreenToggleBtn);
+  if (!btn) return;
+  e.preventDefault();
+  if (getFullscreenElement()) {
+    exitFullscreen().catch(() => {});
+  } else {
+    requestFullscreen(document.documentElement).catch(() => {});
+  }
+}
+
+function initFullscreen() {
+  document.addEventListener("click", handleFullscreenToggle);
 }
 
 // ------- Category anchor links ------- //
@@ -116,5 +163,6 @@ function initCategoryAnchors() {
 
 document.addEventListener("DOMContentLoaded", () => {
   productSlider();
+  initFullscreen();
   initCategoryAnchors();
 });
