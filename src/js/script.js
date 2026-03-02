@@ -6,7 +6,7 @@
  * Last Updated: 2026-02-28
  */
 
-console.log("Script - v1.0.3");
+console.log("Script - v1.0.4");
 
 // ------- Product Slider ------- //
 function productSlider() {

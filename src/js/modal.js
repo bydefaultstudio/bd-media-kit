@@ -7,7 +7,7 @@
  * Last Updated: 2026-02-28
  */
 
-console.log("Script - Modal v1.0.3");
+console.log("Script - Modal v1.0.4");
 
 //
 //------- Selectors -------//
@@ -38,6 +38,7 @@ const modalOpenClass = "is-open";
 const modalAnimDuration = 0.5;
 const modalAnimEase = "power2.out";
 const urlParamProduct = "product";
+const urlParamPage = "page";
 const urlParamIntro = "intro";
 const emailSubjectBase = "BlackDoctor Media Kit";
 const storageKeyRecentlyRead = "bd-media-kit-recently-read";
@@ -73,11 +74,38 @@ function getProductFromUrl() {
   return slug && slug.trim() !== "" ? slug.trim() : null;
 }
 
+// Reads page slug from current URL (?page=slug).
+function getPageFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const slug = params.get(urlParamPage);
+  return slug && slug.trim() !== "" ? slug.trim() : null;
+}
+
 // True if URL has ?intro=1 or ?intro=true (share link that forces the intro modal to open).
 function getIntroFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const v = params.get(urlParamIntro);
   return v === "1" || v === "true";
+}
+
+// Updates URL to include ?page=slug (pushState).
+function setUrlPage(slug) {
+  const url = new URL(window.location.href);
+  if (slug) {
+    url.searchParams.set(urlParamPage, slug);
+  } else {
+    url.searchParams.delete(urlParamPage);
+  }
+  const path = url.pathname + url.search;
+  window.history.pushState({ page: slug }, "", path);
+}
+
+// Removes page param from URL (pushState).
+function clearUrlPage() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete(urlParamPage);
+  const path = url.pathname + (url.search || "");
+  window.history.pushState({ page: null }, "", path);
 }
 
 // Updates URL to include ?product=slug (pushState).
@@ -526,8 +554,8 @@ function openContactModal() {
   console.log("Modal opened — contact");
 }
 
-// Opens the page modal (about-style). If card is provided, injects that card's [data-page="content"]; else injects from first page card (e.g. for data-modal="page-open").
-function openPageModal(card) {
+// Opens the page modal (about-style). If card is provided, injects that card's [data-page="content"]; else injects from first page card (e.g. for data-modal="page-open"). Pass true as second arg to skip URL update (e.g. when opening from URL).
+function openPageModal(card, skipUrlUpdate) {
   const pageEl = getPageModal();
   if (!pageEl) return;
   const cardToUse = card || document.querySelector(pageCard);
@@ -538,7 +566,28 @@ function openPageModal(card) {
   lockScroll(true);
   trapFocus(pageEl);
   animateModalOpen(pageEl);
+  if (cardToUse && !skipUrlUpdate) {
+    const slug = cardToUse.getAttribute("data-page");
+    if (slug) setUrlPage(slug);
+  }
   console.log("Modal opened — page", cardToUse ? cardToUse.getAttribute("data-page") : "");
+}
+
+// Finds the page card with data-page=slug and opens the page modal with it (skips URL update).
+function openPageModalBySlug(slug) {
+  const pageEl = getPageModal();
+  if (!pageEl || !slug) return false;
+  const cards = document.querySelectorAll(pageCard);
+  let card = null;
+  for (let i = 0; i < cards.length; i++) {
+    if (cards[i].getAttribute("data-page") === slug) {
+      card = cards[i];
+      break;
+    }
+  }
+  if (!card) return false;
+  openPageModal(card, true);
+  return true;
 }
 
 // Hides the page modal; restores scroll only if no other modal is open.
@@ -552,6 +601,7 @@ function closePageModal() {
     if (contentWrapper) contentWrapper.scrollTop = 0;
     pageEl.classList.remove(modalOpenClass);
     pageEl.setAttribute("aria-hidden", "true");
+    clearUrlPage();
     if ((!getProductModal() || !isModalOpen(getProductModal())) &&
         (!getContactModal() || !isModalOpen(getContactModal())) &&
         (!getIntroModal() || !isModalOpen(getIntroModal()))) {
@@ -903,15 +953,25 @@ function setupIntroModalListeners() {
   }
 }
 
-// Syncs modal with URL when user navigates back/forward.
+// Syncs modals with URL when user navigates back/forward.
 function handlePopstate() {
-  const slug = getProductFromUrl();
-  const modal = getProductModal();
-  if (!modal) return;
-  if (slug) {
-    openModalBySlug(slug);
-  } else if (isModalOpen(modal)) {
-    closeModal(modal);
+  const productSlug = getProductFromUrl();
+  const productEl = getProductModal();
+  if (productEl) {
+    if (productSlug) {
+      openModalBySlug(productSlug);
+    } else if (isModalOpen(productEl)) {
+      closeModal(productEl);
+    }
+  }
+  const pageSlug = getPageFromUrl();
+  const pageEl = getPageModal();
+  if (pageEl) {
+    if (pageSlug) {
+      openPageModalBySlug(pageSlug);
+    } else if (isModalOpen(pageEl)) {
+      closePageModal();
+    }
   }
 }
 
@@ -930,10 +990,14 @@ document.addEventListener("DOMContentLoaded", () => {
   setupIntroModalListeners();
   applyRecentlyReadStates();
   setupPopstate();
-  const slug = getProductFromUrl();
-  if (slug) {
-    const opened = openModalBySlug(slug);
+  const productSlug = getProductFromUrl();
+  const pageSlug = getPageFromUrl();
+  if (productSlug) {
+    const opened = openModalBySlug(productSlug);
     if (!opened) clearUrlProduct();
+  } else if (pageSlug) {
+    const opened = openPageModalBySlug(pageSlug);
+    if (!opened) clearUrlPage();
   } else if (getIntroFromUrl() || (introModalHasAutoOpen() && shouldShowIntro())) {
     setTimeout(openIntroModal, 150);
   }
