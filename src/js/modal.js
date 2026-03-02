@@ -7,7 +7,7 @@
  * Last Updated: 2026-02-28
  */
 
-console.log("Script - Modal v1.0.2");
+console.log("Script - Modal v1.0.3");
 
 //
 //------- Selectors -------//
@@ -27,6 +27,12 @@ const contactModal = "[data-modal=\"contact\"]";
 const contactOpenBtn = "[data-modal=\"contact-open\"]";
 const productPayload = "[data-product=\"content\"]";
 const productCard = "[data-product]:not([data-product=\"content\"])";
+
+// Page modal (about-style content): [data-modal="page"] root; cards [data-page="slug"], payload [data-page="content"]; open trigger [data-modal="page-open"].
+const pageModal = "[data-modal=\"page\"]";
+const pageOpenBtn = "[data-modal=\"page-open\"]";
+const pagePayload = "[data-page=\"content\"]";
+const pageCard = "[data-page]:not([data-page=\"content\"])";
 const focusable = "a[href], button:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
 const modalOpenClass = "is-open";
 const modalAnimDuration = 0.5;
@@ -323,6 +329,10 @@ function getContactModal() {
   return document.querySelector(contactModal);
 }
 
+function getPageModal() {
+  return document.querySelector(pageModal);
+}
+
 // Returns true if the modal is currently open (aria-hidden is not "true").
 function isModalOpen(modal) {
   return modal && modal.getAttribute("aria-hidden") !== "true";
@@ -366,6 +376,18 @@ function trapFocus(container) {
 // Clones everything inside the card's [data-product="content"] into the modal's [data-modal="content"] slot.
 function injectContent(modal, card) {
   const payload = card ? card.querySelector(productPayload) : null;
+  const slot = modal ? modal.querySelector(productModalContent) : null;
+  if (!payload || !slot) return;
+  slot.innerHTML = "";
+  const children = Array.from(payload.children);
+  children.forEach(function (child) {
+    slot.appendChild(child.cloneNode(true));
+  });
+}
+
+// Clones everything inside the card's [data-page="content"] into the page modal's [data-modal="content"] slot.
+function injectPageContent(modal, card) {
+  const payload = card ? card.querySelector(pagePayload) : null;
   const slot = modal ? modal.querySelector(productModalContent) : null;
   if (!payload || !slot) return;
   slot.innerHTML = "";
@@ -473,7 +495,8 @@ function closeModal(modal, onClosed) {
     modal.classList.remove(modalOpenClass);
     modal.setAttribute("aria-hidden", "true");
     if ((!getContactModal() || !isModalOpen(getContactModal())) &&
-        (!getIntroModal() || !isModalOpen(getIntroModal()))) {
+        (!getIntroModal() || !isModalOpen(getIntroModal())) &&
+        (!getPageModal() || !isModalOpen(getPageModal()))) {
       lockScroll(false);
     }
     clearUrlProduct();
@@ -503,6 +526,47 @@ function openContactModal() {
   console.log("Modal opened — contact");
 }
 
+// Opens the page modal (about-style). If card is provided, injects that card's [data-page="content"]; else injects from first page card (e.g. for data-modal="page-open").
+function openPageModal(card) {
+  const pageEl = getPageModal();
+  if (!pageEl) return;
+  const cardToUse = card || document.querySelector(pageCard);
+  previousFocus = document.activeElement;
+  if (cardToUse) injectPageContent(pageEl, cardToUse);
+  pageEl.classList.add(modalOpenClass);
+  pageEl.setAttribute("aria-hidden", "false");
+  lockScroll(true);
+  trapFocus(pageEl);
+  animateModalOpen(pageEl);
+  console.log("Modal opened — page", cardToUse ? cardToUse.getAttribute("data-page") : "");
+}
+
+// Hides the page modal; restores scroll only if no other modal is open.
+function closePageModal() {
+  const pageEl = getPageModal();
+  if (!pageEl) return;
+
+  function cleanup() {
+    const contentSlot = pageEl.querySelector(productModalContent);
+    const contentWrapper = contentSlot && contentSlot.parentElement;
+    if (contentWrapper) contentWrapper.scrollTop = 0;
+    pageEl.classList.remove(modalOpenClass);
+    pageEl.setAttribute("aria-hidden", "true");
+    if ((!getProductModal() || !isModalOpen(getProductModal())) &&
+        (!getContactModal() || !isModalOpen(getContactModal())) &&
+        (!getIntroModal() || !isModalOpen(getIntroModal()))) {
+      lockScroll(false);
+    }
+    if (previousFocus && typeof previousFocus.focus === "function") {
+      previousFocus.focus();
+    }
+    previousFocus = null;
+    console.log("Modal closed — page");
+  }
+
+  animateModalClose(pageEl, cleanup);
+}
+
 // Hides the contact modal; restores scroll only if product modal is not open.
 function closeContactModal() {
   const contactEl = getContactModal();
@@ -514,7 +578,8 @@ function closeContactModal() {
     contactEl.classList.remove(modalOpenClass);
     contactEl.setAttribute("aria-hidden", "true");
     if ((!getProductModal() || !isModalOpen(getProductModal())) &&
-        (!getIntroModal() || !isModalOpen(getIntroModal()))) {
+        (!getIntroModal() || !isModalOpen(getIntroModal())) &&
+        (!getPageModal() || !isModalOpen(getPageModal()))) {
       lockScroll(false);
     }
     if (previousFocus && typeof previousFocus.focus === "function") {
@@ -568,7 +633,9 @@ function closeIntroModal(dismissedWithoutSubmit) {
     introEl.classList.remove(modalOpenClass);
     introEl.setAttribute("aria-hidden", "true");
     if (!getProductModal() || !isModalOpen(getProductModal())) {
-      if (!getContactModal() || !isModalOpen(getContactModal())) lockScroll(false);
+      if (!getContactModal() || !isModalOpen(getContactModal())) {
+        if (!getPageModal() || !isModalOpen(getPageModal())) lockScroll(false);
+      }
     }
     if (previousFocus && typeof previousFocus.focus === "function") {
       previousFocus.focus();
@@ -580,7 +647,7 @@ function closeIntroModal(dismissedWithoutSubmit) {
   animateModalClose(introEl, cleanup);
 }
 
-// ESC: when in fullscreen, browser exits fullscreen first (we do nothing). When not in fullscreen, close topmost modal (intro > contact > product).
+// ESC: when in fullscreen, browser exits fullscreen first (we do nothing). When not in fullscreen, close topmost modal (intro > contact > page > product).
 function handleModalKeyDown(e) {
   if (e.key !== "Escape") return;
   const fullscreenEl =
@@ -591,6 +658,7 @@ function handleModalKeyDown(e) {
   if (fullscreenEl) return;
   const introEl = getIntroModal();
   const contactEl = getContactModal();
+  const pageEl = getPageModal();
   const productEl = getProductModal();
   if (introEl && isModalOpen(introEl)) {
     closeIntroModal(true);
@@ -598,6 +666,10 @@ function handleModalKeyDown(e) {
   }
   if (contactEl && isModalOpen(contactEl)) {
     closeContactModal();
+    return;
+  }
+  if (pageEl && isModalOpen(pageEl)) {
+    closePageModal();
     return;
   }
   if (productEl && isModalOpen(productEl)) {
@@ -688,6 +760,45 @@ function setupContactModalListeners() {
       } else {
         openContactModal();
       }
+    }
+  });
+}
+
+// Page modal: same structure (close, overlay, wrapper). Cards [data-page="slug"] inject [data-page="content"]; [data-modal="page-open"] opens with first page card.
+function setupPageModalListeners() {
+  const pageEl = getPageModal();
+  if (pageEl) {
+    pageEl.setAttribute("role", "dialog");
+    pageEl.setAttribute("aria-modal", "true");
+    pageEl.setAttribute("aria-hidden", "true");
+    pageEl.classList.remove(modalOpenClass);
+
+    const closeBtn = pageEl.querySelector(productModalClose);
+    if (closeBtn) {
+      closeBtn.addEventListener("click", function pageCloseClick() {
+        closePageModal();
+      });
+    }
+
+    pageEl.addEventListener("click", function pageBackdropClick(e) {
+      if (e.target === pageEl || e.target.closest(productModalOverlay)) {
+        closePageModal();
+      }
+    });
+  }
+
+  document.querySelectorAll(pageCard).forEach(function (card) {
+    card.addEventListener("click", function pageCardClick(e) {
+      e.preventDefault();
+      openPageModal(card);
+    });
+  });
+
+  document.addEventListener("click", function pageOpenDelegated(e) {
+    const btn = e.target.closest(pageOpenBtn);
+    if (btn) {
+      e.preventDefault();
+      openPageModal();
     }
   });
 }
@@ -815,6 +926,7 @@ function setupPopstate() {
 document.addEventListener("DOMContentLoaded", () => {
   setupModalListeners();
   setupContactModalListeners();
+  setupPageModalListeners();
   setupIntroModalListeners();
   applyRecentlyReadStates();
   setupPopstate();
