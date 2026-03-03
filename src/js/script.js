@@ -2,11 +2,11 @@
  * Script Purpose: Black Doctor Digital Media Kit — carousels, overlay, URL deep linking.
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.0.7
+ * Version: 1.0.8
  * Last Updated: 2026-02-22
  */
 
-console.log("Script - v1.0.7");
+console.log("Script - v1.0.8");
 
 // ------- Product Slider ------- //
 function productSlider() {

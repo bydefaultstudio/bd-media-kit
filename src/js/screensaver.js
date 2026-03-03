@@ -2,11 +2,11 @@
  * Script Purpose: Black Doctor Digital Media Kit — idle screensaver (DVD-style bouncing logo).
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.0.7
+ * Version: 1.0.8
  * Last Updated: 2026-02-22
  */
 
-console.log("Script - Screensaver v1.0.7");
+console.log("Script - Screensaver v1.0.8");
 
 (function () {
   "use strict";
@@ -31,8 +31,8 @@ console.log("Script - Screensaver v1.0.7");
   let animationId = null;
   let x = 0;
   let y = 0;
-  let vx = 2;
-  let vy = 2;
+  let vx = 1.2;
+  let vy = 1.2;
 
   function getScreensaver() {
     return document.querySelector(SCREENSAVER_SEL);
@@ -144,9 +144,18 @@ console.log("Script - Screensaver v1.0.7");
     animationId = requestAnimationFrame(tick);
   }
 
-  function onActivity() {
-    if (isScreensaverVisible()) hideScreensaver();
+  function isTouchDevice() {
+    return "ontouchstart" in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+  }
+
+  function shouldDismissOnEvent(eventType) {
+    if (isTouchDevice()) return true;
+    return eventType === "click" || eventType === "keydown" || eventType === "keyup" || eventType === "scroll";
+  }
+
+  function onActivity(e) {
     resetIdleTimer();
+    if (isScreensaverVisible() && shouldDismissOnEvent(e.type)) hideScreensaver();
   }
 
   function isScreensaverTestUrl() {
