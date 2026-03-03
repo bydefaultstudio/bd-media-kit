@@ -46,3 +46,32 @@ body {
   --_semantic---button--button-primary: var(--brand--off-white);
   --_semantic---button--button-text: var(--brand--off-black);
 } */
+
+/* ----- Screensaver [data-modal="screensaver"] -----
+ * After 60s idle, .screensaver (or element with data-modal="screensaver") fades in.
+ * Add .is-active to show; script adds/removes it. Logo inside [data-modal="screensaver-logo"]
+ * bounces off edges; script sets transform. Container should be full-viewport in Webflow.
+ */
+[data-modal="screensaver"] {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+  overflow: hidden;
+}
+
+[data-modal="screensaver"].is-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+[data-modal="screensaver-logo"] {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}

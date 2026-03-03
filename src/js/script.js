@@ -2,11 +2,11 @@
  * Script Purpose: Black Doctor Digital Media Kit — carousels, overlay, URL deep linking.
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.0.5
- * Last Updated: 2026-03-02
+ * Version: 1.0.6
+ * Last Updated: 2026-02-22
  */
 
-console.log("Script - v1.0.5");
+console.log("Script - v1.0.6");
 
 // ------- Product Slider ------- //
 function productSlider() {
@@ -159,6 +159,7 @@ function initCategoryAnchors() {
 
 //
 //------- Initialize -------//
+// Screensaver: include screensaver.js for idle screensaver (data-modal="screensaver" / data-modal="screensaver-logo"); it auto-inits.
 //
 
 document.addEventListener("DOMContentLoaded", () => {

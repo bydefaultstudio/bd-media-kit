@@ -3,11 +3,11 @@
  * Script Purpose: QR code handling for Black Doctor Digital Media Kit.
  * Author: By Default Studio
  * Created: 2026-03-02
- * Version: 1.0.5
- * Last Updated: 2026-03-02
+ * Version: 1.0.6
+ * Last Updated: 2026-02-22
  */
 
-console.log("Script - QR Codes v1.0.5");
+console.log("Script - QR Codes v1.0.6");
 
 //
 //------- Selectors -------//
