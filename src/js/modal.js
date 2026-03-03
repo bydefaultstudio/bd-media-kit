@@ -3,11 +3,11 @@
  * Script Purpose: Product overlay modal — open on card click, close with button / ESC / backdrop.
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.0.2
- * Last Updated: 2026-02-28
+ * Version: 1.0.5
+ * Last Updated: 2026-03-02
  */
 
-console.log("Script - Modal v1.0.4");
+console.log("Script - Modal v1.0.5");
 
 //
 //------- Selectors -------//
@@ -274,6 +274,7 @@ function getEmailSubject() {
 }
 
 // Opens email client with dynamic subject. btn is the element with data-modal="email-btn".
+// Uses encodeURIComponent for subject (and any other params) so spaces are %20, not + — fixes plus signs in subject on mobile/non-default mail clients.
 function handleEmailBtnClick(e, btn) {
   e.preventDefault();
   const href = (btn.getAttribute("href") || "").trim();
@@ -286,7 +287,11 @@ function handleEmailBtnClick(e, btn) {
     if (match && match[2]) params = new URLSearchParams(match[2].slice(1));
   }
   params.set("subject", subject);
-  window.location.href = "mailto:" + email + "?" + params.toString();
+  const parts = [];
+  params.forEach(function (value, key) {
+    parts.push(encodeURIComponent(key) + "=" + encodeURIComponent(value));
+  });
+  window.location.href = "mailto:" + email + "?" + parts.join("&");
 }
 
 // Copies URL to clipboard, then shows .copied child on the button for a few seconds. btn has data-modal="copy-btn" and contains .copied.

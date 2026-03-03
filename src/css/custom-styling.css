@@ -5,6 +5,26 @@
  * Add your overrides and one-off styles below.
  */
 
+/* ----- Fullscreen & tablet (requires viewport-fit=cover in meta viewport) -----
+ * Use with: <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+ * Ensures content is not hidden under notches / home indicator and fills the screen.
+ */
+html {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+body {
+  min-height: 100dvh;
+  min-height: 100vh;
+  overscroll-behavior-y: none;
+}
+
+/* Optional: if your main wrapper is .page-wrapper and should fill height */
+.page-wrapper {
+  min-height: 100dvh;
+  min-height: 100vh;
+}
+
 /* ----- Button colour variables (from .button) -----
  * Change these to restyle button background and text:
  *   --_semantic---button--button-primary  → background (and border)
