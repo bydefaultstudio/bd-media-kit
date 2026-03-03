@@ -6,7 +6,7 @@
  * Last Updated: December 9, 2024
  */
 
-console.log("Script - BD Animations v1.0.6");
+console.log("Script - BD Animations v1.0.7");
 
 // ------- Configurable Parameters ------- //
 function getFadeStart() {
