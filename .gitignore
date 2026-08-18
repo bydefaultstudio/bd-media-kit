@@ -5,11 +5,16 @@
 !src/
 !src/**
 
-# Explicitly ignore (no upload)
+# Explicitly ignore (no upload) — internal working docs, local-only
 docs/
 templates/
 styleguide/
 PROJECT_BRIEF.md
+CLAUDE.md
+PROJECT_PROGRESS.md
+ROADMAP.md
+handovers/
+.claude/
 
 # Keep the public repo front page
 !README.md
