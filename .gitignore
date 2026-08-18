@@ -9,3 +9,8 @@
 docs/
 templates/
 styleguide/
+PROJECT_BRIEF.md
+
+# Keep the public repo front page
+!README.md
+!.gitignore
