@@ -2,61 +2,41 @@
  * Script Purpose: Black Doctor Digital Media Kit — carousels, overlay, URL deep linking.
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.0.8
- * Last Updated: 2026-02-22
+ * Version: 1.1.0
+ * Last Updated: 2026-08-18
  */
 
-console.log("Script - v1.0.8");
+console.log("Script - v1.1.0");
 
-// ------- Product Slider ------- //
-function productSlider() {
-  if (typeof window.Splide === "undefined") {
-    console.warn("Splide not loaded, retrying product slider initialization...");
-    setTimeout(productSlider, 100);
-    return;
-  }
+// ------- Sliders (SplideJS) ------- //
+// Shared config for all carousels; per-type layout passed by initSliders().
+const sliderBaseConfig = {
+  type: "slide",
+  drag: "free",
+  omitEnd: true,
+  snap: true,
+  perMove: 1,
+  gap: "2rem",
+  arrows: true,
+  // Right arrow (next): two paths combined; Splide mirrors for prev
+  arrowPath:
+    "M23.3359 31.6746L20.9788 29.3175L26.9578 23.3387H31.672L23.3359 31.6746Z M35.0054 20.0054H5V16.672H26.958L20.979 10.693L23.3359 8.33594L35.0054 20.0054Z",
+  classes: {
+    arrow: "button is-icon-only is-small is-faded is-outline is-pill custom-arrows",
+  },
+  pagination: false,
+  speed: 800,
+  easing: "ease-out",
+  trimSpace: true,
+  keyboard: true,
+  focus: 0,
+};
 
-  const productSliders = document.querySelectorAll(".product-slider");
+function initSplideSliders(selector, options) {
+  const sliderEls = document.querySelectorAll(selector);
 
-  for (const el of productSliders) {
-    const slider = new window.Splide(el, {
-      type: "slide",
-      // rewind: true,
-      drag: "free",
-      omitEnd: true,
-      snap: true,
-      perPage: 3,
-      perMove: 1,
-      gap: "2rem",
-      arrows: true,
-      // Right arrow (next): two paths combined; Splide mirrors for prev
-      arrowPath:
-        "M23.3359 31.6746L20.9788 29.3175L26.9578 23.3387H31.672L23.3359 31.6746Z M35.0054 20.0054H5V16.672H26.958L20.979 10.693L23.3359 8.33594L35.0054 20.0054Z",
-      classes: {
-        arrow: "button is-icon-only is-small is-faded is-outline is-pill custom-arrows",
-      },
-      pagination: false,
-      speed: 800,
-      easing: "ease-out",
-      // padding: { right: "18%" },
-      trimSpace: true,
-      keyboard: true,
-      focus: 0,
-      breakpoints: {
-        1024: {
-          perPage: 3,
-          perMove: 1,
-        },
-        768: {
-          perPage: 2,
-          perMove: 1,
-        },
-        600: {
-          perPage: 1,
-          perMove: 1,
-        },
-      },
-    });
+  for (const el of sliderEls) {
+    const slider = new window.Splide(el, Object.assign({}, sliderBaseConfig, options));
 
     const applyArrowAttributes = () => {
       const prevArrow = slider.root.querySelector(".splide__arrow--prev");
@@ -78,6 +58,39 @@ function productSlider() {
 
     slider.mount();
   }
+}
+
+function initSliders() {
+  if (typeof window.Splide === "undefined") {
+    console.warn("Splide not loaded, retrying slider initialization...");
+    setTimeout(initSliders, 100);
+    return;
+  }
+
+  // Products: 7 category carousels, 3/2/1 per view
+  initSplideSliders(".product-slider", {
+    perPage: 3,
+    breakpoints: {
+      1024: { perPage: 3, perMove: 1 },
+      768: { perPage: 2, perMove: 1 },
+      600: { perPage: 1, perMove: 1 },
+    },
+  });
+
+  // Pages: one wide card per view with a peek of the next
+  initSplideSliders(".pages-slider", {
+    perPage: 1,
+    padding: { right: "15%" },
+  });
+
+  // Stories: 4 / 2.5 / 1.5 per view (halves via right padding — Splide perPage is integer-only)
+  initSplideSliders(".stories-slider", {
+    perPage: 4,
+    breakpoints: {
+      768: { perPage: 2, padding: { right: "20%" } },
+      600: { perPage: 1, padding: { right: "33%" } },
+    },
+  });
 }
 
 // ------- Fullscreen toggle ------- //
@@ -163,7 +176,7 @@ function initCategoryAnchors() {
 //
 
 document.addEventListener("DOMContentLoaded", () => {
-  productSlider();
+  initSliders();
   initFullscreen();
   initCategoryAnchors();
 });

@@ -3,11 +3,11 @@
  * Script Purpose: Product overlay modal — open on card click, close with button / ESC / backdrop.
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.0.8
- * Last Updated: 2026-02-22
+ * Version: 1.1.0
+ * Last Updated: 2026-08-18
  */
 
-console.log("Script - Modal v1.0.8");
+console.log("Script - Modal v1.1.0");
 
 //
 //------- Selectors -------//
@@ -33,12 +33,18 @@ const pageModal = "[data-modal=\"page\"]";
 const pageOpenBtn = "[data-modal=\"page-open\"]";
 const pagePayload = "[data-page=\"content\"]";
 const pageCard = "[data-page]:not([data-page=\"content\"])";
+
+// Stories modal (What's News feed): [data-modal="stories"] root; cards [data-story="slug"], payload [data-story="content"].
+const storiesModal = "[data-modal=\"stories\"]";
+const storyPayload = "[data-story=\"content\"]";
+const storyCard = "[data-story]:not([data-story=\"content\"])";
 const focusable = "a[href], button:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
 const modalOpenClass = "is-open";
 const modalAnimDuration = 0.5;
 const modalAnimEase = "power2.out";
 const urlParamProduct = "product";
 const urlParamPage = "page";
+const urlParamStory = "story";
 const urlParamIntro = "intro";
 const emailSubjectBase = "BlackDoctor Media Kit";
 const storageKeyRecentlyRead = "bd-media-kit-recently-read";
@@ -81,6 +87,13 @@ function getPageFromUrl() {
   return slug && slug.trim() !== "" ? slug.trim() : null;
 }
 
+// Reads story slug from current URL (?story=slug).
+function getStoryFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const slug = params.get(urlParamStory);
+  return slug && slug.trim() !== "" ? slug.trim() : null;
+}
+
 // True if URL has ?intro=1 or ?intro=true (share link that forces the intro modal to open).
 function getIntroFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -106,6 +119,26 @@ function clearUrlPage() {
   url.searchParams.delete(urlParamPage);
   const path = url.pathname + (url.search || "");
   window.history.pushState({ page: null }, "", path);
+}
+
+// Updates URL to include ?story=slug (pushState).
+function setUrlStory(slug) {
+  const url = new URL(window.location.href);
+  if (slug) {
+    url.searchParams.set(urlParamStory, slug);
+  } else {
+    url.searchParams.delete(urlParamStory);
+  }
+  const path = url.pathname + url.search;
+  window.history.pushState({ story: slug }, "", path);
+}
+
+// Removes story param from URL (pushState).
+function clearUrlStory() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete(urlParamStory);
+  const path = url.pathname + (url.search || "");
+  window.history.pushState({ story: null }, "", path);
 }
 
 // Updates URL to include ?product=slug (pushState).
@@ -366,6 +399,10 @@ function getPageModal() {
   return document.querySelector(pageModal);
 }
 
+function getStoriesModal() {
+  return document.querySelector(storiesModal);
+}
+
 // Returns true if the modal is currently open (aria-hidden is not "true").
 function isModalOpen(modal) {
   return modal && modal.getAttribute("aria-hidden") !== "true";
@@ -421,6 +458,18 @@ function injectContent(modal, card) {
 // Clones everything inside the card's [data-page="content"] into the page modal's [data-modal="content"] slot.
 function injectPageContent(modal, card) {
   const payload = card ? card.querySelector(pagePayload) : null;
+  const slot = modal ? modal.querySelector(productModalContent) : null;
+  if (!payload || !slot) return;
+  slot.innerHTML = "";
+  const children = Array.from(payload.children);
+  children.forEach(function (child) {
+    slot.appendChild(child.cloneNode(true));
+  });
+}
+
+// Clones everything inside the card's [data-story="content"] into the stories modal's [data-modal="content"] slot.
+function injectStoryContent(modal, card) {
+  const payload = card ? card.querySelector(storyPayload) : null;
   const slot = modal ? modal.querySelector(productModalContent) : null;
   if (!payload || !slot) return;
   slot.innerHTML = "";
@@ -529,6 +578,7 @@ function closeModal(modal, onClosed) {
     modal.setAttribute("aria-hidden", "true");
     if ((!getContactModal() || !isModalOpen(getContactModal())) &&
         (!getIntroModal() || !isModalOpen(getIntroModal())) &&
+        (!getStoriesModal() || !isModalOpen(getStoriesModal())) &&
         (!getPageModal() || !isModalOpen(getPageModal()))) {
       lockScroll(false);
     }
@@ -609,6 +659,7 @@ function closePageModal() {
     clearUrlPage();
     if ((!getProductModal() || !isModalOpen(getProductModal())) &&
         (!getContactModal() || !isModalOpen(getContactModal())) &&
+        (!getStoriesModal() || !isModalOpen(getStoriesModal())) &&
         (!getIntroModal() || !isModalOpen(getIntroModal()))) {
       lockScroll(false);
     }
@@ -620,6 +671,70 @@ function closePageModal() {
   }
 
   animateModalClose(pageEl, cleanup);
+}
+
+// Opens the stories modal with the given card's [data-story="content"] payload. Pass true as second arg to skip URL update (e.g. when opening from URL).
+function openStoriesModal(card, skipUrlUpdate) {
+  const storiesEl = getStoriesModal();
+  if (!storiesEl) return;
+  const cardToUse = card || document.querySelector(storyCard);
+  previousFocus = document.activeElement;
+  if (cardToUse) injectStoryContent(storiesEl, cardToUse);
+  storiesEl.classList.add(modalOpenClass);
+  storiesEl.setAttribute("aria-hidden", "false");
+  lockScroll(true);
+  trapFocus(storiesEl);
+  animateModalOpen(storiesEl);
+  if (cardToUse && !skipUrlUpdate) {
+    const slug = cardToUse.getAttribute("data-story");
+    if (slug) setUrlStory(slug);
+  }
+  console.log("Modal opened — story", cardToUse ? cardToUse.getAttribute("data-story") : "");
+}
+
+// Finds the story card with data-story=slug and opens the stories modal with it (skips URL update).
+function openStoriesModalBySlug(slug) {
+  const storiesEl = getStoriesModal();
+  if (!storiesEl || !slug) return false;
+  const cards = document.querySelectorAll(storyCard);
+  let card = null;
+  for (let i = 0; i < cards.length; i++) {
+    if (cards[i].getAttribute("data-story") === slug) {
+      card = cards[i];
+      break;
+    }
+  }
+  if (!card) return false;
+  openStoriesModal(card, true);
+  return true;
+}
+
+// Hides the stories modal; restores scroll only if no other modal is open.
+function closeStoriesModal() {
+  const storiesEl = getStoriesModal();
+  if (!storiesEl) return;
+
+  function cleanup() {
+    const contentSlot = storiesEl.querySelector(productModalContent);
+    const contentWrapper = contentSlot && contentSlot.parentElement;
+    if (contentWrapper) contentWrapper.scrollTop = 0;
+    storiesEl.classList.remove(modalOpenClass);
+    storiesEl.setAttribute("aria-hidden", "true");
+    clearUrlStory();
+    if ((!getProductModal() || !isModalOpen(getProductModal())) &&
+        (!getContactModal() || !isModalOpen(getContactModal())) &&
+        (!getPageModal() || !isModalOpen(getPageModal())) &&
+        (!getIntroModal() || !isModalOpen(getIntroModal()))) {
+      lockScroll(false);
+    }
+    if (previousFocus && typeof previousFocus.focus === "function") {
+      previousFocus.focus();
+    }
+    previousFocus = null;
+    console.log("Modal closed — story");
+  }
+
+  animateModalClose(storiesEl, cleanup);
 }
 
 // Hides the contact modal; restores scroll only if product modal is not open.
@@ -634,6 +749,7 @@ function closeContactModal() {
     contactEl.setAttribute("aria-hidden", "true");
     if ((!getProductModal() || !isModalOpen(getProductModal())) &&
         (!getIntroModal() || !isModalOpen(getIntroModal())) &&
+        (!getStoriesModal() || !isModalOpen(getStoriesModal())) &&
         (!getPageModal() || !isModalOpen(getPageModal()))) {
       lockScroll(false);
     }
@@ -689,7 +805,9 @@ function closeIntroModal(dismissedWithoutSubmit) {
     introEl.setAttribute("aria-hidden", "true");
     if (!getProductModal() || !isModalOpen(getProductModal())) {
       if (!getContactModal() || !isModalOpen(getContactModal())) {
-        if (!getPageModal() || !isModalOpen(getPageModal())) lockScroll(false);
+        if (!getStoriesModal() || !isModalOpen(getStoriesModal())) {
+          if (!getPageModal() || !isModalOpen(getPageModal())) lockScroll(false);
+        }
       }
     }
     if (previousFocus && typeof previousFocus.focus === "function") {
@@ -702,7 +820,7 @@ function closeIntroModal(dismissedWithoutSubmit) {
   animateModalClose(introEl, cleanup);
 }
 
-// ESC: when in fullscreen, browser exits fullscreen first (we do nothing). When not in fullscreen, close topmost modal (intro > contact > page > product).
+// ESC: when in fullscreen, browser exits fullscreen first (we do nothing). When not in fullscreen, close topmost modal (intro > contact > stories > page > product).
 function handleModalKeyDown(e) {
   if (e.key !== "Escape") return;
   const fullscreenEl =
@@ -713,6 +831,7 @@ function handleModalKeyDown(e) {
   if (fullscreenEl) return;
   const introEl = getIntroModal();
   const contactEl = getContactModal();
+  const storiesEl = getStoriesModal();
   const pageEl = getPageModal();
   const productEl = getProductModal();
   if (introEl && isModalOpen(introEl)) {
@@ -721,6 +840,10 @@ function handleModalKeyDown(e) {
   }
   if (contactEl && isModalOpen(contactEl)) {
     closeContactModal();
+    return;
+  }
+  if (storiesEl && isModalOpen(storiesEl)) {
+    closeStoriesModal();
     return;
   }
   if (pageEl && isModalOpen(pageEl)) {
@@ -858,6 +981,37 @@ function setupPageModalListeners() {
   });
 }
 
+// Stories modal: same structure (close, overlay, wrapper). Cards [data-story="slug"] inject [data-story="content"].
+function setupStoriesModalListeners() {
+  const storiesEl = getStoriesModal();
+  if (storiesEl) {
+    storiesEl.setAttribute("role", "dialog");
+    storiesEl.setAttribute("aria-modal", "true");
+    storiesEl.setAttribute("aria-hidden", "true");
+    storiesEl.classList.remove(modalOpenClass);
+
+    const closeBtn = storiesEl.querySelector(productModalClose);
+    if (closeBtn) {
+      closeBtn.addEventListener("click", function storiesCloseClick() {
+        closeStoriesModal();
+      });
+    }
+
+    storiesEl.addEventListener("click", function storiesBackdropClick(e) {
+      if (e.target === storiesEl || e.target.closest(productModalOverlay)) {
+        closeStoriesModal();
+      }
+    });
+  }
+
+  document.querySelectorAll(storyCard).forEach(function (card) {
+    card.addEventListener("click", function storyCardClick(e) {
+      e.preventDefault();
+      openStoriesModal(card);
+    });
+  });
+}
+
 // When .success-message is visible, save name/email from form if not already saved (fallback when Webflow handles submit first), then close.
 function saveIntroFormFromWrapperAndClose(introEl) {
   const wrapper = introEl.querySelector(productModalWrapper);
@@ -978,6 +1132,15 @@ function handlePopstate() {
       closePageModal();
     }
   }
+  const storySlug = getStoryFromUrl();
+  const storiesEl = getStoriesModal();
+  if (storiesEl) {
+    if (storySlug) {
+      openStoriesModalBySlug(storySlug);
+    } else if (isModalOpen(storiesEl)) {
+      closeStoriesModal();
+    }
+  }
 }
 
 function setupPopstate() {
@@ -992,17 +1155,22 @@ document.addEventListener("DOMContentLoaded", () => {
   setupModalListeners();
   setupContactModalListeners();
   setupPageModalListeners();
+  setupStoriesModalListeners();
   setupIntroModalListeners();
   applyRecentlyReadStates();
   setupPopstate();
   const productSlug = getProductFromUrl();
   const pageSlug = getPageFromUrl();
+  const storySlug = getStoryFromUrl();
   if (productSlug) {
     const opened = openModalBySlug(productSlug);
     if (!opened) clearUrlProduct();
   } else if (pageSlug) {
     const opened = openPageModalBySlug(pageSlug);
     if (!opened) clearUrlPage();
+  } else if (storySlug) {
+    const opened = openStoriesModalBySlug(storySlug);
+    if (!opened) clearUrlStory();
   } else if (getIntroFromUrl() || (introModalHasAutoOpen() && shouldShowIntro())) {
     setTimeout(openIntroModal, 150);
   }
