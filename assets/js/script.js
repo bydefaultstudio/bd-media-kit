@@ -2,11 +2,11 @@
  * Script Purpose: Black Doctor Digital Media Kit — carousels, overlay, URL deep linking.
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.1.0
+ * Version: 1.1.2
  * Last Updated: 2026-08-18
  */
 
-console.log("Script - v1.1.0");
+console.log("Script - v1.1.2");
 
 // ------- Sliders (SplideJS) ------- //
 // Shared config for all carousels; per-type layout passed by initSliders().
@@ -25,8 +25,8 @@ const sliderBaseConfig = {
     arrow: "button is-icon-only is-small is-faded is-outline is-pill custom-arrows",
   },
   pagination: false,
-  speed: 800,
-  easing: "ease-out",
+  speed: 1200,
+  easing: "cubic-bezier(0.65, 0, 0.35, 1)", // easeInOutCubic — slow start and finish
   trimSpace: true,
   keyboard: true,
   focus: 0,
@@ -77,15 +77,20 @@ function initSliders() {
     },
   });
 
-  // Pages: one wide card per view with a peek of the next
+  // Pages: one full-width card per view; loops and auto-advances
   initSplideSliders(".pages-slider", {
+    type: "loop",
     perPage: 1,
-    padding: { right: "15%" },
+    gap: "1rem",
+    autoplay: true,
+    interval: 4000,
   });
 
   // Stories: 4 / 2.5 / 1.5 per view (halves via right padding — Splide perPage is integer-only)
   initSplideSliders(".stories-slider", {
     perPage: 4,
+    gap: "1rem",
+    arrows: false,
     breakpoints: {
       768: { perPage: 2, padding: { right: "20%" } },
       600: { perPage: 1, padding: { right: "33%" } },
