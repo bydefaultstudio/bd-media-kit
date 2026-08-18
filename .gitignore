@@ -1,9 +1,12 @@
 # Ignore everything
 *
 
-# Except the src folder and its contents
-!src/
-!src/**
+# Except the assets folder and its contents
+!assets/
+!assets/**
+
+# Never OS junk, even inside assets
+.DS_Store
 
 # Explicitly ignore (no upload) — internal working docs, local-only
 docs/
