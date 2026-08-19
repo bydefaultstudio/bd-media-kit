@@ -2,11 +2,11 @@
  * Script Purpose: Black Doctor Digital Media Kit — carousels, overlay, URL deep linking.
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.2.0
- * Last Updated: 2026-08-19
+ * Version: 1.2.1
+ * Last Updated: 2026-08-20
  */
 
-console.log("Script - v1.2.0");
+console.log("Script - v1.2.1");
 
 // ------- Sliders (SplideJS) ------- //
 // Shared config for all carousels; per-type layout passed by initSliders().
@@ -402,6 +402,7 @@ function initFullscreen() {
 // ------- Category anchor links ------- //
 // Links with data-anchor="slug" (e.g. editorial, video) become anchor links to the section with id="slug".
 // Category sections must have id matching the slug (e.g. id="editorial", id="video").
+
 function initCategoryAnchors() {
   const links = document.querySelectorAll("[data-anchor]");
   links.forEach((el) => {
@@ -414,6 +415,14 @@ function initCategoryAnchors() {
       const section = document.getElementById(slug);
       if (section) {
         e.preventDefault();
+        // Webflow's runtime smooth-scrolls same-page hash links from a document-level listener, and it knows
+        // nothing about scroll-margin — left alone it re-scrolls to the raw section top and undoes the offset
+        // that keeps the heading clear of the fixed sticky bar. preventDefault does not stop it; only
+        // stopping the bubble does. The offset itself is Webflow-side: scroll-margin-top on .section, which
+        // also covers hash-on-load and back-button restores. (ScrollSmoother is loaded on this site but never
+        // instantiated — if that ever changes it transforms #smooth-content instead of scrolling the
+        // document, ignores scroll-margin, and this needs smoother.scrollTo with an explicit offset.)
+        e.stopPropagation();
         section.scrollIntoView({ behavior: "smooth", block: "start" });
         if (history.pushState) {
           history.pushState(null, "", "#" + slug);
