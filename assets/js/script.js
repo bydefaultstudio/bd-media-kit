@@ -2,11 +2,11 @@
  * Script Purpose: Black Doctor Digital Media Kit — carousels, overlay, URL deep linking.
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.1.2
+ * Version: 1.1.3
  * Last Updated: 2026-08-18
  */
 
-console.log("Script - v1.1.2");
+console.log("Script - v1.1.3");
 
 // ------- Sliders (SplideJS) ------- //
 // Shared config for all carousels; per-type layout passed by initSliders().
@@ -77,9 +77,11 @@ function initSliders() {
     },
   });
 
-  // Pages: one full-width card per view; loops and auto-advances
+  // Pages: one full-width card per view; auto-advances, rewinding at the end
+  // (loop + drag disabled for now — restore with type: "loop" and removing drag: false)
   initSplideSliders(".pages-slider", {
-    type: "loop",
+    drag: false,
+    rewind: true,
     perPage: 1,
     gap: "1rem",
     autoplay: true,
