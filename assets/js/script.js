@@ -2,11 +2,11 @@
  * Script Purpose: Black Doctor Digital Media Kit — carousels, overlay, URL deep linking.
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.1.3
- * Last Updated: 2026-08-18
+ * Version: 1.2.0
+ * Last Updated: 2026-08-19
  */
 
-console.log("Script - v1.1.3");
+console.log("Script - v1.2.0");
 
 // ------- Sliders (SplideJS) ------- //
 // Shared config for all carousels; per-type layout passed by initSliders().
@@ -34,6 +34,7 @@ const sliderBaseConfig = {
 
 function initSplideSliders(selector, options) {
   const sliderEls = document.querySelectorAll(selector);
+  const instances = [];
 
   for (const el of sliderEls) {
     const slider = new window.Splide(el, Object.assign({}, sliderBaseConfig, options));
@@ -55,9 +56,14 @@ function initSplideSliders(selector, options) {
 
     slider.on("mounted", applyArrowAttributes);
     slider.on("updated", applyArrowAttributes);
+    // refresh() rebuilds the arrow buttons, so the filter would otherwise strip these attributes
+    slider.on("arrows:mounted", applyArrowAttributes);
 
     slider.mount();
+    instances.push(slider);
   }
+
+  return instances;
 }
 
 function initSliders() {
@@ -67,8 +73,8 @@ function initSliders() {
     return;
   }
 
-  // Products: 7 category carousels, 3/2/1 per view
-  initSplideSliders(".product-slider", {
+  // Products: 6 category carousels, 3/2/1 per view
+  const productSliders = initSplideSliders(".product-slider", {
     perPage: 3,
     breakpoints: {
       1024: { perPage: 3, perMove: 1 },
@@ -97,6 +103,248 @@ function initSliders() {
       768: { perPage: 2, padding: { right: "20%" } },
       600: { perPage: 1, padding: { right: "33%" } },
     },
+  });
+
+  initProductFilter(productSliders);
+}
+
+// ------- Product brand filter ------- //
+// Sticky segmented control: [data-filter="<Brand name>"] buttons filter the product carousels by the
+// brand tags rendered inside each card. Nothing selected = show all; clicking the active button clears it.
+// Hiding a slide with CSS is not filtering — Splide keeps it in its internal list and every measurement
+// (track width, snap positions, perPage, omitEnd, arrows) goes wrong. So slides actually leave
+// .splide__list, and refresh() re-collects what remains from the DOM.
+// Filtered-out slides are parked in a hidden div inside the slider root: outside .splide__list, so Splide
+// never sees them, but still in the document, so modal.js can find their cards for ?product= deep links.
+const filterTag = "[data-filter]";
+const brandTag = ".category-tag-list .category-tag";
+const filterActiveClass = "is-active";
+const filterAnimMs = 250;
+
+// Trims, collapses whitespace, lowercases. Matching is exact equality, never substring —
+// "blackdoctor" is a prefix of "blackdoctor pro".
+function normalizeBrand(value) {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+// No brand selected matches everything; otherwise the card must carry that exact brand tag.
+function slideHasBrand(slide, brand) {
+  if (!brand) return true;
+  return Array.from(slide.querySelectorAll(brandTag)).some(
+    (tag) => normalizeBrand(tag.textContent) === brand
+  );
+}
+
+function initProductFilter(splides) {
+  const buttons = Array.from(document.querySelectorAll(filterTag));
+  if (!buttons.length || !splides.length) return;
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let pendingCommit = null;
+  let activeBrand = null;
+
+  const sliders = splides.map((splide) => {
+    const list = splide.root.querySelector(".splide__list");
+    const park = document.createElement("div");
+    park.style.display = "none";
+    splide.root.appendChild(park);
+
+    return {
+      splide,
+      list,
+      park,
+      slides: Array.from(list.querySelectorAll(":scope > .splide__slide:not(.splide__slide--clone)")),
+      // The section carries the vertical padding — hiding only the slider root would leave an empty band.
+      host: splide.root.closest("section") || splide.root,
+    };
+  });
+
+  // Screen readers get no cue that sections vanished; the live region carries the result count.
+  const status = document.createElement("div");
+  status.setAttribute("role", "status");
+  status.style.cssText = "position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)";
+  document.body.appendChild(status);
+
+  // Moves slides between the list and the park, hides emptied sections, and refreshes each carousel.
+  // Returns how many products are left showing.
+  function applyFilter(brand) {
+    let total = 0;
+
+    sliders.forEach((slider) => {
+      let kept = 0;
+      // appendChild moves the node, so walking the master array restores the original order.
+      slider.slides.forEach((slide) => {
+        if (slideHasBrand(slide, brand)) {
+          slider.list.appendChild(slide);
+          kept += 1;
+        } else {
+          // Splide numbers slide ids on mount; a parked slide keeps its old one and would collide.
+          slide.removeAttribute("id");
+          slider.park.appendChild(slide);
+        }
+      });
+
+      // Unhide before refresh — layout maths on a display:none root is stale.
+      slider.host.style.display = kept ? "" : "none";
+      total += kept;
+      if (!kept) return;
+
+      // refresh() strips the list's inline style, which cancels an in-flight slide transition without
+      // firing transitionend — the state would stay MOVING forever and kill that carousel's arrows and
+      // drag. Cancel the motion and force IDLE first, and start the rebuilt list at the first card.
+      slider.splide.Components.Move.cancel();
+      slider.splide.state.set(window.Splide.STATES.IDLE);
+      slider.splide.Components.Controller.setIndex(0);
+      slider.splide.refresh();
+    });
+
+    // Hiding sections changes the page height; ScrollTrigger caches absolute positions and only
+    // recomputes when told to (GSAP is loaded by Webflow, so guard for it).
+    if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+
+    return total;
+  }
+
+  // Only the properties this module writes — Splide keeps each slide's width and margin-right inline,
+  // so anything that clears the whole style attribute would strip the carousel's own layout.
+  function clearSlideStyle(slide) {
+    ["transition", "opacity", "transform", "pointer-events"].forEach((prop) => {
+      slide.style.removeProperty(prop);
+    });
+  }
+
+  // Rebuilds the carousels, then fades the surviving cards back in.
+  function commitFilter(brand) {
+    const total = applyFilter(brand);
+
+    const showing = [];
+    sliders.forEach((slider) => {
+      slider.slides.forEach((slide) => {
+        clearSlideStyle(slide);
+        if (slide.parentElement === slider.list) showing.push(slide);
+      });
+    });
+
+    if (showing.length && !reduceMotion.matches) {
+      showing.forEach((slide) => {
+        slide.style.opacity = "0";
+      });
+      // Force a style flush so opacity:0 is the state the transition starts from — without it both
+      // writes collapse into one change and the cards pop in instead of fading.
+      void sliders[0].list.offsetWidth;
+      showing.forEach((slide) => {
+        slide.style.transition = "opacity " + filterAnimMs + "ms";
+        slide.style.removeProperty("opacity");
+      });
+    }
+
+    status.textContent = brand ? "Showing " + total + " products" : "Showing all products";
+  }
+
+  function setFilter(brand) {
+    activeBrand = brand;
+    // One commit in flight at a time — a newer click replaces the pending one.
+    clearTimeout(pendingCommit);
+
+    buttons.forEach((btn) => {
+      const isActive = normalizeBrand(btn.getAttribute("data-filter")) === brand;
+      btn.classList.toggle(filterActiveClass, isActive);
+      btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+
+    // Cards on their way out fade and shrink first; the reflow happens once they are gone.
+    const leaving = [];
+    sliders.forEach((slider) => {
+      slider.slides.forEach((slide) => {
+        if (slide.parentElement === slider.list && !slideHasBrand(slide, brand)) leaving.push(slide);
+      });
+    });
+
+    if (!leaving.length || reduceMotion.matches) {
+      commitFilter(brand);
+      return;
+    }
+
+    leaving.forEach((slide) => {
+      slide.style.transition =
+        "opacity " + filterAnimMs + "ms, transform " + filterAnimMs + "ms";
+      slide.style.opacity = "0";
+      slide.style.transform = "scale(0.96)";
+      // A fading card must not still open its modal and leave focus stranded in the park.
+      slide.style.pointerEvents = "none";
+    });
+    pendingCommit = setTimeout(() => commitFilter(brand), filterAnimMs);
+  }
+
+  function handleFilterClick(brand) {
+    setFilter(brand === activeBrand ? null : brand);
+  }
+
+  buttons.forEach((btn) => {
+    const brand = normalizeBrand(btn.getAttribute("data-filter"));
+    // The Webflow elements are divs, so they need button semantics and key handling of their own.
+    btn.setAttribute("role", "button");
+    btn.setAttribute("tabindex", "0");
+    btn.setAttribute("aria-pressed", "false");
+    btn.classList.remove(filterActiveClass);
+    btn.addEventListener("click", () => handleFilterClick(brand));
+    btn.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      handleFilterClick(brand);
+    });
+  });
+
+  const group = buttons[0].parentElement;
+  if (group) {
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-label", "Filter products by brand");
+  }
+}
+// ------- Sticky bar reveal ------- //
+// The bar sits one bar-height above the viewport (CSS transform on .stickybar) until #brands scrolls up
+// to meet it, then slides in and stays down for the rest of the page. ScrollTrigger rather than a scroll
+// listener: ScrollSmoother fakes scroll position with a transform, and ScrollTrigger stays in sync with
+// it and re-measures on resize — including when the brand filter hides sections and shifts #brands.
+const stickybarSelector = ".stickybar";
+const stickybarTriggerSelector = "#categories";
+const stickybarVisibleClass = "is-visible";
+const stickybarMaxRetries = 20; // ~2s waiting for Webflow to load GSAP
+
+function initStickybarReveal(attempt = 0) {
+  const bar = document.querySelector(stickybarSelector);
+  if (!bar) return;
+
+  // Any failure below leaves the bar showing — never strand the filter off-screen.
+  const trigger = document.querySelector(stickybarTriggerSelector);
+  if (!trigger) {
+    bar.classList.add(stickybarVisibleClass);
+    return;
+  }
+
+  if (typeof window.ScrollTrigger === "undefined") {
+    if (attempt < stickybarMaxRetries) {
+      setTimeout(() => initStickybarReveal(attempt + 1), 100);
+    } else {
+      console.warn("ScrollTrigger not loaded, sticky bar left visible");
+      bar.classList.add(stickybarVisibleClass);
+    }
+    return;
+  }
+
+  // === true matters: classList.toggle() with an undefined force argument flips the class instead of
+  // clearing it, and isActive is undefined until the first refresh has run.
+  const syncBar = (self) => bar.classList.toggle(stickybarVisibleClass, self.isActive === true);
+
+  window.ScrollTrigger.create({
+    trigger: trigger,
+    // Function form so the bar's own height is re-read on every refresh (responsive + filter changes).
+    start: () => "top " + bar.offsetHeight + "px",
+    end: "max",
+    onToggle: syncBar,
+    // Fires on the initial calculation and after every later refresh (ScrollSmoother starting up, a
+    // resize, or the brand filter hiding sections) — this is what sets the state on load.
+    onRefresh: syncBar,
   });
 }
 
@@ -184,6 +432,7 @@ function initCategoryAnchors() {
 
 document.addEventListener("DOMContentLoaded", () => {
   initSliders();
+  initStickybarReveal();
   initFullscreen();
   initCategoryAnchors();
 });
