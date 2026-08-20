@@ -4,11 +4,11 @@
  *                 and copy it to the clipboard.
  * Author: By Default Studio
  * Created: 2025-02-05
- * Version: 2.0.0
+ * Version: 2.0.1
  * Last Updated: 2026-08-20
  */
 
-console.log("Script - Link Builder v2.0.0");
+console.log("Script - Link Builder v2.0.1");
 
 //
 //------- Selectors -------//
@@ -72,6 +72,11 @@ function initLinkBuilder() {
   const copyBtn = document.querySelector(inviteCopyButton);
 
   if (!companyInput || !output || !copyBtn) return;
+
+  // The output is generated, so typing into it would be silently discarded on the next keystroke.
+  // Set here rather than in Webflow: the Designer exposes no readonly option on a textarea and the
+  // API rejects it as a custom attribute. Still selectable, so the execCommand copy fallback works.
+  output.setAttribute("readonly", "readonly");
 
   function updateUrl() {
     output.value = getInviteUrl(companyInput.value);
