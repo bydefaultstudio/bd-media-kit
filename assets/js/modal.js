@@ -3,11 +3,11 @@
  * Script Purpose: Product overlay modal — open on card click, close with button / ESC / backdrop.
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.3.0
+ * Version: 1.4.0
  * Last Updated: 2026-08-20
  */
 
-console.log("Script - Modal v1.3.0");
+console.log("Script - Modal v1.4.0");
 
 //
 //------- Selectors -------//
@@ -69,16 +69,15 @@ const successSel = ".success-message";
 const autoOpenAttr = "data-intro-auto-open";
 const closeDelaySec = 2;
 
-// Personalisation (?name=&company=): a hidden block inside the intro modal, revealed for personalised links.
-// HTML: [data-personalize="block"] wrapper (hidden until .is-visible), containing [data-personalize="name"]
-//       and, for the company line, [data-personalize="company-line"] (hidden until .is-visible) wrapping
-//       [data-personalize="company"]. [data-personalize="default"] marks the non-personalised heading to hide.
-const urlParamName = "name";
+// Personalisation (?company=): a hidden block inside the intro modal, revealed for personalised links.
+// Deliberately scoped to the brand, not a person — a media kit gets forwarded around the client's company,
+// so "Prepared for Merck" stays true for everyone who opens it in a way "Hi Erlen," would not. The intro
+// form still asks name + email, so each person the link reaches identifies themselves.
+// HTML: [data-personalize="block"] wrapper (hidden until .is-visible) containing [data-personalize="company"];
+//       [data-personalize="default"] marks the non-personalised heading to hide.
 const urlParamCompany = "company";
 const personalizeBlock = "[data-personalize=\"block\"]";
-const personalizeName = "[data-personalize=\"name\"]";
 const personalizeCompany = "[data-personalize=\"company\"]";
-const personalizeCompanyLine = "[data-personalize=\"company-line\"]";
 const personalizeDefault = "[data-personalize=\"default\"]";
 const classVisible = "is-visible";
 const maxPersonalizeLength = 60;
@@ -1168,7 +1167,7 @@ function setupPopstate() {
 }
 
 //
-//------- Personalisation (?name / ?company) -------//
+//------- Personalisation (?company) -------//
 //
 
 // Show/hide helpers for the personalisation elements. JS drives `display` directly so the block works
@@ -1186,34 +1185,21 @@ function hidePersonalizeEl(el) {
   el.classList.remove(classVisible);
 }
 
-// Fills the intro modal's personalisation block from ?name and ?company, prefills the intro name
-// field, and hides the default heading. Returns true when a name was applied, which is what makes
-// the intro modal open for a personalised link. textContent throughout — the values come from the URL.
+// Fills the intro modal's personalisation block from ?company and hides the default heading. Returns true
+// when a company was applied, which is what makes the intro modal open for a personalised link.
+// textContent, never innerHTML — the value comes from whoever crafts the URL.
 function applyPersonalization() {
   const block = document.querySelector(personalizeBlock);
   if (!block) return false;
 
-  const name = getPersonalizeParam(urlParamName);
-  if (!name) {
+  const company = getPersonalizeParam(urlParamCompany);
+  if (!company) {
     hidePersonalizeEl(block);
     return false;
   }
 
-  const nameEl = block.querySelector(personalizeName);
-  if (nameEl) nameEl.textContent = name;
-
-  const company = getPersonalizeParam(urlParamCompany);
   const companyEl = block.querySelector(personalizeCompany);
-  const companyLine = block.querySelector(personalizeCompanyLine);
-  if (company && companyEl) {
-    companyEl.textContent = company;
-    showPersonalizeEl(companyLine);
-  } else {
-    hidePersonalizeEl(companyLine);
-  }
-
-  const nameInput = document.querySelector(introName);
-  if (nameInput && !nameInput.value) nameInput.value = name;
+  if (companyEl) companyEl.textContent = company;
 
   hidePersonalizeEl(document.querySelector(personalizeDefault));
   showPersonalizeEl(block);
@@ -1264,7 +1250,7 @@ document.addEventListener("DOMContentLoaded", () => {
   applyRecentlyReadStates();
   setupPopstate();
   // A personalised link opens the intro greeting first and holds any deep link until it closes.
-  // ?name= and ?intro=1 both ignore the localStorage gates — an explicitly sent link should always open.
+  // ?company= and ?intro=1 both ignore the localStorage gates — an explicitly sent link should always open.
   const deepLink = getDeepLinkFromUrl();
   const personalized = applyPersonalization();
   const wantsIntro =
