@@ -3,11 +3,11 @@
  * Script Purpose: Product overlay modal — open on card click, close with button / ESC / backdrop.
  * Author: By Default Studio
  * Created: 2025-02-22
- * Version: 1.1.0
- * Last Updated: 2026-08-18
+ * Version: 1.3.0
+ * Last Updated: 2026-08-20
  */
 
-console.log("Script - Modal v1.1.0");
+console.log("Script - Modal v1.3.0");
 
 //
 //------- Selectors -------//
@@ -69,6 +69,20 @@ const successSel = ".success-message";
 const autoOpenAttr = "data-intro-auto-open";
 const closeDelaySec = 2;
 
+// Personalisation (?name=&company=): a hidden block inside the intro modal, revealed for personalised links.
+// HTML: [data-personalize="block"] wrapper (hidden until .is-visible), containing [data-personalize="name"]
+//       and, for the company line, [data-personalize="company-line"] (hidden until .is-visible) wrapping
+//       [data-personalize="company"]. [data-personalize="default"] marks the non-personalised heading to hide.
+const urlParamName = "name";
+const urlParamCompany = "company";
+const personalizeBlock = "[data-personalize=\"block\"]";
+const personalizeName = "[data-personalize=\"name\"]";
+const personalizeCompany = "[data-personalize=\"company\"]";
+const personalizeCompanyLine = "[data-personalize=\"company-line\"]";
+const personalizeDefault = "[data-personalize=\"default\"]";
+const classVisible = "is-visible";
+const maxPersonalizeLength = 60;
+
 //
 //------- Utility Functions -------//
 //
@@ -99,6 +113,14 @@ function getIntroFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const v = params.get(urlParamIntro);
   return v === "1" || v === "true";
+}
+
+// Reads a personalisation param from the URL, trimmed and length-capped. Returns null when absent.
+// The cap is a guard, not a preference: the value is supplied by whoever crafts the link.
+function getPersonalizeParam(key) {
+  const params = new URLSearchParams(window.location.search);
+  const value = (params.get(key) || "").trim().slice(0, maxPersonalizeLength);
+  return value || null;
 }
 
 // Updates URL to include ?page=slug (pushState).
@@ -384,6 +406,9 @@ function urlCopied(btn) {
 //
 
 let previousFocus = null;
+
+// Deep link held back while the intro modal is showing; opened once the intro closes.
+let pendingDeepLink = null;
 
 // Returns the product modal element from the DOM.
 function getProductModal() {
@@ -773,7 +798,6 @@ function prefillContactForm() {
   const emailInput = contactEl.querySelector(contactEmail);
   if (nameInput && visitor.name) nameInput.value = visitor.name;
   if (emailInput && visitor.email) emailInput.value = visitor.email;
-  console.log("[testing] Contact form fields updated", { name: visitor.name, email: visitor.email });
 }
 
 // Opens the intro modal (first-visit name/email collection). Same animation and focus trap as contact.
@@ -788,14 +812,12 @@ function openIntroModal() {
   animateModalOpen(introEl);
   watchIntroSuccessMessage();
   console.log("Modal opened — intro");
-  console.log("[testing] Intro modal opened");
 }
 
 // Hides the intro modal; restores scroll only if product and contact modals are not open.
 function closeIntroModal(dismissedWithoutSubmit) {
   const introEl = getIntroModal();
   if (!introEl) return;
-  console.log("[testing] Intro modal closed", dismissedWithoutSubmit ? "(dismissed)" : "(submitted/success)");
   if (dismissedWithoutSubmit) setIntroDismissed();
 
   function cleanup() {
@@ -815,6 +837,8 @@ function closeIntroModal(dismissedWithoutSubmit) {
     }
     previousFocus = null;
     console.log("Modal closed — intro");
+    // Last, so the deep link's open animation never overlaps the intro's close animation.
+    openPendingDeepLink();
   }
 
   animateModalClose(introEl, cleanup);
@@ -1020,10 +1044,7 @@ function saveIntroFormFromWrapperAndClose(introEl) {
   const emailEl = wrapper.querySelector(introEmail);
   const name = nameEl ? nameEl.value.trim() : "";
   const email = emailEl ? emailEl.value.trim() : "";
-  if (name && email) {
-    setStoredVisitor({ name, email });
-    console.log("[testing] Intro form saved from success state", { name, email });
-  }
+  if (name && email) setStoredVisitor({ name, email });
   closeIntroModal(false);
 }
 
@@ -1106,7 +1127,6 @@ function setupIntroModalListeners() {
         e.preventDefault();
         return;
       }
-      console.log("[testing] Intro form submitted", { name, email });
       setStoredVisitor({ name, email });
     }, true);
   }
@@ -1148,6 +1168,90 @@ function setupPopstate() {
 }
 
 //
+//------- Personalisation (?name / ?company) -------//
+//
+
+// Show/hide helpers for the personalisation elements. JS drives `display` directly so the block works
+// before any Designer styling exists; the .is-visible class is the styling hook for when it does.
+// Both agree either way — inline display is cleared exactly when .is-visible is added.
+function showPersonalizeEl(el) {
+  if (!el) return;
+  el.style.display = "";
+  el.classList.add(classVisible);
+}
+
+function hidePersonalizeEl(el) {
+  if (!el) return;
+  el.style.display = "none";
+  el.classList.remove(classVisible);
+}
+
+// Fills the intro modal's personalisation block from ?name and ?company, prefills the intro name
+// field, and hides the default heading. Returns true when a name was applied, which is what makes
+// the intro modal open for a personalised link. textContent throughout — the values come from the URL.
+function applyPersonalization() {
+  const block = document.querySelector(personalizeBlock);
+  if (!block) return false;
+
+  const name = getPersonalizeParam(urlParamName);
+  if (!name) {
+    hidePersonalizeEl(block);
+    return false;
+  }
+
+  const nameEl = block.querySelector(personalizeName);
+  if (nameEl) nameEl.textContent = name;
+
+  const company = getPersonalizeParam(urlParamCompany);
+  const companyEl = block.querySelector(personalizeCompany);
+  const companyLine = block.querySelector(personalizeCompanyLine);
+  if (company && companyEl) {
+    companyEl.textContent = company;
+    showPersonalizeEl(companyLine);
+  } else {
+    hidePersonalizeEl(companyLine);
+  }
+
+  const nameInput = document.querySelector(introName);
+  if (nameInput && !nameInput.value) nameInput.value = name;
+
+  hidePersonalizeEl(document.querySelector(personalizeDefault));
+  showPersonalizeEl(block);
+  return true;
+}
+
+// Returns the deep link the URL asks for, or null. Product wins, then page, then story.
+function getDeepLinkFromUrl() {
+  const product = getProductFromUrl();
+  if (product) return { type: "product", slug: product };
+  const page = getPageFromUrl();
+  if (page) return { type: "page", slug: page };
+  const story = getStoryFromUrl();
+  if (story) return { type: "story", slug: story };
+  return null;
+}
+
+// Opens a deep-linked modal, clearing its URL param when no card matches the slug.
+function openDeepLink(link) {
+  if (!link) return;
+  if (link.type === "product") {
+    if (!openModalBySlug(link.slug)) clearUrlProduct();
+  } else if (link.type === "page") {
+    if (!openPageModalBySlug(link.slug)) clearUrlPage();
+  } else if (link.type === "story") {
+    if (!openStoriesModalBySlug(link.slug)) clearUrlStory();
+  }
+}
+
+// Opens the deep link held back while the intro was showing. Called from the intro's close cleanup.
+function openPendingDeepLink() {
+  if (!pendingDeepLink) return;
+  const link = pendingDeepLink;
+  pendingDeepLink = null;
+  openDeepLink(link);
+}
+
+//
 //------- Initialize -------//
 //
 
@@ -1159,20 +1263,18 @@ document.addEventListener("DOMContentLoaded", () => {
   setupIntroModalListeners();
   applyRecentlyReadStates();
   setupPopstate();
-  const productSlug = getProductFromUrl();
-  const pageSlug = getPageFromUrl();
-  const storySlug = getStoryFromUrl();
-  if (productSlug) {
-    const opened = openModalBySlug(productSlug);
-    if (!opened) clearUrlProduct();
-  } else if (pageSlug) {
-    const opened = openPageModalBySlug(pageSlug);
-    if (!opened) clearUrlPage();
-  } else if (storySlug) {
-    const opened = openStoriesModalBySlug(storySlug);
-    if (!opened) clearUrlStory();
-  } else if (getIntroFromUrl() || (introModalHasAutoOpen() && shouldShowIntro())) {
+  // A personalised link opens the intro greeting first and holds any deep link until it closes.
+  // ?name= and ?intro=1 both ignore the localStorage gates — an explicitly sent link should always open.
+  const deepLink = getDeepLinkFromUrl();
+  const personalized = applyPersonalization();
+  const wantsIntro =
+    personalized || getIntroFromUrl() || (introModalHasAutoOpen() && shouldShowIntro());
+
+  if (wantsIntro && getIntroModal()) {
+    pendingDeepLink = deepLink;
     setTimeout(openIntroModal, 150);
+  } else {
+    openDeepLink(deepLink);
   }
 });
 /* ==== END BLACK DOCTOR MEDIA KIT MODAL SCRIPT ==== */
