@@ -1,3 +1,10 @@
+<p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/images/readme-header_dark.svg">
+  <img alt="bd-media-kit" src="assets/images/readme-header_light.svg" height="48">
+</picture>
+</p>
+
 # Black Doctor — Digital Media Kit
 
 This project uses a structured design system and layout architecture for building consistent, maintainable front-end experiences within Webflow.
